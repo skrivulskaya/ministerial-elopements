@@ -1,15 +1,17 @@
-rm(list=ls(all=TRUE)) # clear memory
 
-packages<- c("maptools","rgdal","leaflet","htmlwidgets","shiny","ggmap","rsconnect") # list the packages that you'll need
-lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
-setwd("E:/GIT_Checkouts/R_Scripts/ministerial-elopements")
+packages<- c("rgdal","leaflet","htmlwidgets","shiny","ggmap") # list the packages that you'll need
+library(rgdal)
+library(leaflet)
+library(shiny)
+library(ggmap)
+
+
+# setwd("E:/GIT_Checkouts/R_Scripts/ministerial-elopements")
 latlong <- "+init=epsg:4326"
 
 
 #Loading the geocoded data
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
-
-
 
 
 
@@ -31,11 +33,6 @@ complete.lines <- SpatialLinesDataFrame(SpatialLines(lines),elop.comp)
 
 
 
-#Examples of figures
-b <- rbind(table(elop.raw$Decade),table(elop.raw$Eloped_with_Married_Woman, elop.raw$Decade))
-barplot(b)
-
-#by decade
 
 
 
@@ -50,17 +47,6 @@ found.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
 coordinates(found.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(found.spdf) <- CRS(latlong)
 
-
-#Basic Leaflet Maps
-m <- leaflet()
-m %>% addTiles() %>%
-  addPolylines(data = complete.lines, popup = ~popupw, group = "Connections") %>%
-  addMarkers(data = orig.spdf, popup = ~popupw, group = "Origin",clusterOptions = markerClusterOptions()) %>%
-  addMarkers(data = found.spdf, popup = ~popupw, group = "Found",clusterOptions = markerClusterOptions()) %>%
-  addLayersControl(
-    overlayGroups = c("Origin", "Found","Connections"),
-    options = layersControlOptions(collapsed = FALSE)
-  )
 
 
 #Building Shiny Interface

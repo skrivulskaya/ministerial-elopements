@@ -1,0 +1,13 @@
+name: ministerial-elopements
+title: ministerial-elopements
+username:
+account: msisk1
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 244199
+bundleId: 1115071
+url: https://msisk1.shinyapps.io/ministerial-elopements/
+when: 1512422676.55437
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: gecoding.R|LICENSE|ministerial_elopements.csv|ministerial_elopements_excluded_cases.xls|README.md|Shiny_Builder_v01.R
