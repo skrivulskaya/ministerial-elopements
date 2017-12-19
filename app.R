@@ -59,31 +59,73 @@ ui <- fluidPage(
   # selectInput("decade", "Decade:",
   #             c("all", "1870s","1880s","1890s","1900s","1910-1914")),
   selectizeInput("denomination", "Denomination:",
-                 choices = c("all", sort(unique(elop.raw$Denomination_for_Tableau))))
+                 choices = c("all", sort(unique(elop.raw$Denomination_for_Tableau)))),
+  checkboxInput("CompCheck","Complete cases", value = FALSE, width = NULL)
 )
 
 server <- function(input, output, session) {
   
-  points <- eventReactive(c(input$range, input$denomination), {
+  points <- eventReactive(c(input$range, input$denomination, input$CompCheck), {
+    working.spdf <- orig.spdf
+    if(input$CompCheck){
+      working.spdf <- orig.spdf[which(!is.na(orig.spdf$Latitude_Found)),]
+    }
     if (input$denomination == "all"){
-      orig.spdf[which(orig.spdf$Year >= input$range[1] & orig.spdf$Year <= input$range[2]),]
+      return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2]),])
     }else{
-      orig.spdf[which(orig.spdf$Year >= input$range[1] & orig.spdf$Year <= input$range[2] & orig.spdf$Denomination_for_Tableau == input$denomination),]  
+      return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2] & working.spdf$Denomination_for_Tableau == input$denomination),])  
     }
     
     
-  }, ignoreNULL = FALSE)
+  }, ignoreNULL = FALSE)#end points1
+  
+  points2 <- eventReactive(c(input$range, input$denomination), {
+    if (input$denomination == "all"){
+      found.spdf[which(found.spdf$Year >= input$range[1] & found.spdf$Year <= input$range[2]),]
+    }else{
+      found.spdf[which(found.spdf$Year >= input$range[1] & found.spdf$Year <= input$range[2] & found.spdf$Denomination_for_Tableau == input$denomination),]  
+    }
+    
+    
+  }, ignoreNULL = FALSE)#end points1
+  
+  lines <- eventReactive(c(input$range, input$denomination), {
+    if (input$denomination == "all"){
+      print(nrow(complete.lines))
+      complete.lines[which(complete.lines$Year >= input$range[1] & complete.lines$Year <= input$range[2]),]
+      
+    }else{
+      complete.lines[which(complete.lines$Year >= input$range[1] & complete.lines$Year <= input$range[2] & complete.lines$Denomination_for_Tableau == input$denomination),]  
+    }
+    
+    
+  }, ignoreNULL = FALSE)#end points1
   
   output$mymap <- renderLeaflet({
     leaflet() %>%
       fitBounds(-129,24.2,-65.58,50.54)%>%
-      addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) 
+      addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
+      addLayersControl(
+        overlayGroups = c("Origin", "Found","Connections"),
+        options = layersControlOptions(collapsed = FALSE)
+      )       
+    # addPolylines(data = complete.lines, popup = ~popupw, group = "Connections")
+    
+    
     # %>% addMarkers(data = points())
   })
   observe({
     leafletProxy("mymap") %>%
-      clearMarkers() %>%  
-      addMarkers(data = points())
+      clearMarkers() %>% 
+      clearMarkerClusters() %>%
+      clearShapes()%>%
+      # addMarkers(data = points()) %>%
+      # addMarkers(data = points(), popup = ~popupw, group = "Origin") %>%
+      # addMarkers(data = points2(), popup = ~popupw, group = "Found")#,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points(), popup = ~popupw, group = "Origin",color = "green",radius=3)%>%
+      addCircleMarkers(data = points2(), popup = ~popupw, group = "Found",color = "red",radius=3)%>%#,clusterOptions = markerClusterOptions())
+      addPolylines(data = lines(), popup = ~popupw, group = "Connections")
+    
   })
 }
 
