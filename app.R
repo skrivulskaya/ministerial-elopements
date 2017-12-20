@@ -6,7 +6,7 @@ library(shiny)
 library(ggmap)
 
 
-# setwd("E:/GIT_Checkouts/R_Scripts/ministerial-elopements")
+setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 latlong <- "+init=epsg:4326"
 
 
@@ -16,7 +16,7 @@ elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 
 
 elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
-                         "Name = ",elop.raw$Accusations,"<br/>",
+                         "Accusation = ",elop.raw$Accusations,"<br/>",
                          "Origin = ",elop.raw$Location_Origin,"<br/>",
                          "Found = ",elop.raw$Location_Found,"<br/>"
 ) #A bit of HTML To make the popups on the lines
@@ -24,6 +24,7 @@ elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
 
 #Creating the Line objects out of the point objects:
 elop.comp <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
+row.names(elop.comp) <- NULL
 lines <- list()
 for (i in 1:nrow(elop.comp)) { 
   lines[[i]] <- Lines(list(Line(rbind(c(elop.comp$Longtitude_Origin[i],elop.comp$Latitude_Origin[i]), c(elop.comp$Longtitude_Found[i], elop.comp$Latitude_Found[i]) ))), as.character(i)) 
@@ -122,8 +123,8 @@ server <- function(input, output, session) {
       # addMarkers(data = points()) %>%
       # addMarkers(data = points(), popup = ~popupw, group = "Origin") %>%
       # addMarkers(data = points2(), popup = ~popupw, group = "Found")#,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points(), popup = ~popupw, group = "Origin",color = "green",radius=3)%>%
-      addCircleMarkers(data = points2(), popup = ~popupw, group = "Found",color = "red",radius=3)%>%#,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points(), popup = ~popupw, group = "Origin",color = "gray",radius=3)%>%
+      addCircleMarkers(data = points2(), popup = ~popupw, group = "Found",color = "green",radius=3)%>%#,clusterOptions = markerClusterOptions())
       addPolylines(data = lines(), popup = ~popupw, group = "Connections")
     
   })
