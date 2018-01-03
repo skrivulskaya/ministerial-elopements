@@ -1,0 +1,13 @@
+name: RunawayMinisters
+title: RunawayMinisters
+username:
+account: scholarsgrotto
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 250657
+bundleId: 1144697
+url: https://scholarsgrotto.shinyapps.io/RunawayMinisters/
+when: 1513785907.31422
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: appbak00.R|appbak01.R|appbak02.R|appbak03.R
