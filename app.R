@@ -96,7 +96,6 @@ server <- function(input, output, session) {
   
   lines <- eventReactive(c(input$range, input$denomination), {
     if (input$denomination == "All"){
-      print(nrow(complete.lines))
       complete.lines[which(complete.lines$Year >= input$range[1] & complete.lines$Year <= input$range[2]),]
       
     }else{
