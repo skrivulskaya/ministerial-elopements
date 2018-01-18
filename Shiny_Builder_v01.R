@@ -1,5 +1,9 @@
 rm(list=ls(all=TRUE)) # clear memory
 
+
+#MLS Todo: Add Arrowheads to main map. Deal with multiple people in same place (randomize points). Find a good symbol for people that are found in the same city
+# classification direction
+
 packages<- c("maptools","rgdal","leaflet","htmlwidgets","shiny","ggmap","rsconnect", "leaflet.minicharts") # list the packages that you'll need
 lapply(packages, require, character.only=T) # load the packages, if they don't load you might need to install them first
 setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
@@ -50,6 +54,34 @@ found.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
 coordinates(found.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(found.spdf) <- CRS(latlong)
 
+elop.map <-elop.comp[which(elop.comp$Location_Origin != elop.comp$Location_Found),]
+
+#New Testing
+m <- leaflet()
+m %>% addTiles() %>%
+  # addPolylines(data = complete.lines, popup = ~popupw, group = "Connections") %>%
+  # addFlows(
+  #   elop.raw$Longtitude_Origin, elop.raw$Latitude_Origin, elop.raw$Longtitude_Found, elop.raw$Latitude_Found,
+  #   flow = 1
+  # ) %>%
+   addMarkers(data = orig.spdf, popup = ~popupw, group = "Origin",clusterOptions = markerClusterOptions()) %>%
+   #addMarkers(data = found.spdf, popup = ~popupw, group = "Found",clusterOptions = markerClusterOptions()) %>%
+  addLayersControl(
+    overlayGroups = c("Origin", "Found","Connections"),
+    options = layersControlOptions(collapsed = FALSE)
+  )%>%
+addFlows(
+  elop.map$Longtitude_Origin, elop.map$Latitude_Origin, elop.map$Longtitude_Found, elop.map$Latitude_Found,
+  # flow = .01,
+  maxThickness = 2,
+  color = "navy"
+  # popup = elop.comp$popupw
+)
+
+
+
+#end new testing
+
 
 #Basic Leaflet Maps
 m <- leaflet()
@@ -59,12 +91,15 @@ m %>% addTiles() %>%
   #   elop.raw$Longtitude_Origin, elop.raw$Latitude_Origin, elop.raw$Longtitude_Found, elop.raw$Latitude_Found,
   #   flow = 1
   # ) %>%
-  addMarkers(data = orig.spdf, popup = ~popupw, group = "Origin",clusterOptions = markerClusterOptions()) %>%
-  addMarkers(data = found.spdf, popup = ~popupw, group = "Found",clusterOptions = markerClusterOptions()) %>%
+  # addMarkers(data = orig.spdf, popup = ~popupw, group = "Origin",clusterOptions = markerClusterOptions()) %>%
+  # addMarkers(data = found.spdf, popup = ~popupw, group = "Found",clusterOptions = markerClusterOptions()) %>%
   addLayersControl(
     overlayGroups = c("Origin", "Found","Connections"),
     options = layersControlOptions(collapsed = FALSE)
   )
+
+
+
 
 
 #Building Shiny Interface
@@ -148,3 +183,10 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+
+
+
+elop.map$deltaPop <- elop.map$Location_Origin_Approximate_Population - elop.map$Location_Found_Approximate_Population
+plot(elop.map$Year[which(elop.map$Location_Found_Approximate_Population<100000)], elop.map$deltaPop[which(elop.map$Location_Found_Approximate_Population<100000)])
+aggregate(elop.comp$deltaPop,by=list(elop.comp$Decade), FUN = sd, na.rm=T)
+table(elop.comp$Decade)
