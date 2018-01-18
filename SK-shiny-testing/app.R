@@ -2,13 +2,13 @@
 rm(list=ls(all=TRUE)) 
 
 #List of packages that you'll need
-packages<- c("maptools","rgdal","leaflet","htmlwidgets","shiny","ggmap","rsconnect","ggplot2") 
+packages<- c("dygraphs", "maptools","rgdal","leaflet","htmlwidgets","shiny","ggmap","rsconnect","ggplot2") 
 
 #Load the packages, if they don't load you might need to install them first
 lapply(packages, require, character.only=T) 
 
 #Set working directory
-setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/SK-shiny-testing")
+setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements/SK-shiny-testing")
 
 #Load the geocoded data
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
