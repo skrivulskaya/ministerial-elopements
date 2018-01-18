@@ -80,3 +80,39 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+
+#Visualizations with dygraphs
+  
+  #write table in R and export it to .csv  
+    denombyyear <- table(elop.raw$Year, elop.raw$Denomination_for_Tableau)
+    write.csv(mydf, file = "denombyyear.csv")
+
+  #Load the new file
+  dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
+
+  #building a dygraph
+  library(dygraphs)
+  library(xts)
+
+  Methodist <- as.xts(ts(start = c(1870), end=c(1914),
+                     data = c(dby.raw$Methodist)))
+
+  Baptist <- as.xts(ts(start = c(1870), end=c(1914),
+                     data = c(dby.raw$Baptist)))
+
+  Presbyterian <- as.xts(ts(start = c(1870), end=c(1914),
+                          data = c(dby.raw$Presbyterian)))
+  
+  Congregational <- as.xts(ts(start = c(1870), end=c(1914),
+                            data = c(dby.raw$Congregational)))
+
+  majordems <- cbind(Methodist, Baptist, Presbyterian, Congregational)
+
+  dygraph(majordems) %>% 
+    dyAxis("y", label = "Number of Runaway Ministers") %>% 
+    dySeries(majordems$...1, label = "Methodist") %>% 
+    dySeries(majordems$...2, label = "Baptist") %>% 
+    dySeries(majordems$...3, label = "Presbyterian") %>% 
+    dySeries(majordems$...4, label = "Congregational") %>% 
+    dyRangeSelector(height = 30)
+  
