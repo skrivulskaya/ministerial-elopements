@@ -14,7 +14,7 @@ elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 
 #write table in R and export it to .csv  
 denombyyear <- table(elop.raw$Year, elop.raw$Denomination_for_Tableau)
-write.csv(mydf, file = "denombyyear.csv")
+write.csv(denombyyear, file = "denombyyear.csv")
 
 #Load the new file
 dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
@@ -44,3 +44,4 @@ dygraph(majordems) %>%
   dySeries(majordems$...3, label = "Presbyterian") %>% 
   dySeries(majordems$...4, label = "Congregational") %>% 
   dyRangeSelector(height = 30)
+
