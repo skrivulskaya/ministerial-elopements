@@ -52,6 +52,10 @@ found.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
 coordinates(found.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(found.spdf) <- CRS(latlong)
 
+elop.map <-elop.comp[which(elop.comp$Location_Origin != elop.comp$Location_Found),]
+elop.same <- elop.comp[which(elop.comp$Location_Origin == elop.comp$Location_Found),]
+
+
 
 
 #Building Shiny Interface
