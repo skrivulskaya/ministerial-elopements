@@ -8,16 +8,19 @@ rm(list=ls(all=TRUE)) # clear memory
 #put in the direction as a classification
 
 
-packages<- c("rgdal","leaflet","htmlwidgets","shiny","ggmap") # list the packages that you'll need
+# packages<- c("rgdal","leaflet","htmlwidgets","shiny","ggmap") # list the packages that you'll need
 library(rgdal)
 library(leaflet)
 library(shiny)
-library(ggmap)
-library(leaflet.minicharts)
+# library(ggmap)
+# library(leaflet.minicharts)
+library (geosphere)
+# library(maptools)
 
 
 # setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
-setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
+# setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
+# setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 
 latlong <- "+init=epsg:4326"
 
@@ -27,14 +30,10 @@ elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 
 #Generate new locations for duplicate places 
 
-# elop.raw <- elop.raw[,c("Location_Origin","Location_Found", "Longtitude_Origin","Latitude_Origin" ,"Longtitude_Found" ,"Latitude_Found"   )]
-
 elop.raw$dup_origin <- elop.raw$Location_Origin %in% elop.raw[duplicated(elop.raw$Location_Origin),]$Location_Origin
 elop.raw$dup_found <- elop.raw$Location_Found %in% elop.raw[duplicated(elop.raw$Location_Found),]$Location_Found
-
 elop.raw$Latitude_Origin <- ifelse(elop.raw$dup_origin, elop.raw$Latitude_Origin - (runif(nrow(elop.raw))-.5)/20,elop.raw$Latitude_Origin)
 elop.raw$Longtitude_Origin <- ifelse(elop.raw$dup_origin, elop.raw$Longtitude_Origin - (runif(nrow(elop.raw))-.5)/20,elop.raw$Longtitude_Origin)
-
 elop.raw$Latitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Latitude_Found - (runif(nrow(elop.raw))-.5)/20,elop.raw$Latitude_Found)
 elop.raw$Longtitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Longtitude_Found - (runif(nrow(elop.raw))-.5)/20,elop.raw$Longtitude_Found)
 
@@ -53,40 +52,50 @@ elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
 ) #A bit of HTML To make the popups on the lines
 
 
-
+#New method for creating lines
 elop.comp <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
 row.names(elop.comp) <- NULL
-lines <- list()
-for (i in 1:nrow(elop.comp)) { 
-  lines[[i]] <- Lines(list(Line(rbind(c(elop.comp$Longtitude_Origin[i],elop.comp$Latitude_Origin[i]), c(elop.comp$Longtitude_Found[i], elop.comp$Latitude_Found[i]) ))), as.character(i)) 
-  #print(i)
+
+a <- (gcIntermediate(elop.comp[,c("Longtitude_Origin","Latitude_Origin")], elop.comp[,c("Longtitude_Found","Latitude_Found")],addStartEnd = T, breakAtDateLine = T, n=150, sp = T) )
+complete.lines <- SpatialLinesDataFrame(a,elop.comp)
+#Fixing a dateline issue for that one that ran to new zealand: TODO: Still not perfect
+negs <- as.matrix(coordinates(complete.lines[94,])[[1]][[2]])
+negs[,1] <- (negs[,1])-360
+complete.lines@lines[[94]]@Lines[[2]]@coords[] <- negs
+
+#Making the arrows for the lines
+
+markers.df <- elop.comp[which(elop.comp$Location_Origin != elop.comp$Location_Found),]
+
+markers.df$midlong <- apply(markers.df[,c("Longtitude_Origin","Longtitude_Found")], 1, mean) 
+markers.df$midlat <- apply(markers.df[,c("Latitude_Origin","Latitude_Found")], 1, mean) 
+a <- (gcIntermediate(markers.df[,c("Longtitude_Origin","Latitude_Origin")], markers.df[,c("Longtitude_Found","Latitude_Found")], n=1) )
+a <- do.call(rbind.data.frame, a)
+markers.df$midlong <- a$lon
+markers.df$midlat <- a$lat
+
+
+markers.df$bearing <- bearingRhumb(markers.df[,c("Longtitude_Origin","Latitude_Origin")],markers.df[,c("Longtitude_Found","Latitude_Found")])
+#Now can calculate the direction of travel
+arrow.length <- 60000
+arrow.angle <- 30
+
+a <- data.frame(destPoint(markers.df[,c( "midlong","midlat")], d = arrow.length, b = markers.df$bearing + arrow.angle -180 ))
+markers.df$arrow1Lat <- a$lat
+markers.df$arrow1Lon <- a$lon
+
+a <- data.frame(destPoint(markers.df[,c( "midlong","midlat")], d = arrow.length, b = markers.df$bearing - arrow.angle-180 ))
+markers.df$arrow2Lat <- a$lat
+markers.df$arrow2Lon <- a$lon
+
+
+row.names(markers.df) <- NULL
+polys <- list()
+for (i in 1:nrow(markers.df)) { 
+  polys[[i]] = Polygons(list(Polygon(rbind(c(markers.df$midlong[i],markers.df$midlat[i]), c(markers.df$arrow2Lon[i], markers.df$arrow2Lat[i]), c(markers.df$arrow1Lon[i], markers.df$arrow1Lat[i]),c(markers.df$midlong[i],markers.df$midlat[i])))), as.character(i))
 }
-complete.lines <- SpatialLinesDataFrame(SpatialLines(lines),elop.comp)
-
-
-elop.comp$arrowLat <- elop.comp$Latitude_Origin + (elop.comp$Latitude_Origin - elop.comp$Latitude_Found)/2
-elop.comp$arrowLon <- elop.comp$Longtitude_Origin + (elop.comp$Longtitude_Origin - elop.comp$Longtitude_Found)/2
-
-elop.comp$arrowLon <- ifelse(elop.comp$arrowLon < -180, elop.comp$arrowLon + 360,elop.comp$arrowLon)
-library(geosphere)
-elop.comp$mid <- midPoint(elop.comp[,c("Longtitude_Origin", "Latitude_Origin")],elop.comp[,c("Longtitude_Found", "Latitude_Found")])
-
-
-markers.spdf <- elop.comp
-coordinates(markers.spdf)=midPoint(elop.comp[,c("Longtitude_Origin", "Latitude_Origin")],elop.comp[,c("Longtitude_Found", "Latitude_Found")],f=0)
-proj4string(markers.spdf) <- CRS(latlong)
-
-
-
-# var diffLat = points[p+1]["lat"] - points[p]["lat"]
-# var diffLng = points[p+1]["lng"] - points[p]["lng"]
-# var angle = 360 - (Math.atan2(diffLat, diffLng)*57.295779513082)
-# 1
-# 2
-# 3
-# var diffLat = points[p+1]["lat"] - points[p]["lat"]
-# var diffLng = points[p+1]["lng"] - points[p]["lng"]
-# var angle = 360 - (Math.atan2(diffLat, diffLng)*57.295779513082)
+poly.arrows <- SpatialPolygonsDataFrame(SpatialPolygons(polys),markers.df)
+proj4string(poly.arrows) <- CRS(latlong)
 
 
 #Mapping Section
@@ -97,8 +106,6 @@ a<- data.frame(table(orig.spdf$Location_Origin))
 a$Location_Origin <- as.character(a$Var1)
 a$Var1 <- NULL
 
-# orig.spdf$Latitude_Origin <- orig.spdf$Latitude_Origin - (runif(nrow(orig.spdf))-.5)/20
-# orig.spdf$Longtitude_Origin <- orig.spdf$Longtitude_Origin - (runif(nrow(orig.spdf))-.5)/20
 orig.spdf <- merge(orig.spdf,  a, by="Location_Origin",all=T)
 
 
@@ -182,7 +189,16 @@ server <- function(input, output, session) {
     
   }, ignoreNULL = FALSE)#end lines.connections
   
-  
+  arrowheads.connections <- eventReactive(c(input$range, input$denomination), {
+    if (input$denomination == "All"){
+      poly.arrows[which(poly.arrows$Year >= input$range[1] & poly.arrows$Year <= input$range[2]),]
+      
+    }else{
+      poly.arrows[which(poly.arrows$Year >= input$range[1] & poly.arrows$Year <= input$range[2] & poly.arrows$Denomination_for_Tableau == input$denomination),]  
+    }
+    
+    
+  }, ignoreNULL = FALSE)#end lines.connections
   
   
  
@@ -204,21 +220,12 @@ server <- function(input, output, session) {
       clearMarkers() %>% 
       clearMarkerClusters() %>%
       clearShapes()%>%
-      clearFlows()%>%
       addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "brown",radius=3)%>%
       addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "green",radius=3)%>%#,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "navy",radius=3) %>%
-      addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "navy") 
-      # addMarkers(data = markers.spdf)
-      # plotArrows(lines.connections(), fraction=0.9, length=0.15, first='', add=FALSE)
-      # addFlows(
-      #   lines.connections()@data$Longtitude_Origin, lines.connections()@data$Latitude_Origin, lines.connections()@data$Longtitude_Found, lines.connections()@data$Latitude_Found,
-      #   # flow = .01,
-      #   maxThickness = 2,
-      #   color = "navy",
-      #   popup = popupArgs(noPopup = T),
-      #   group = "Connections"
-      # ) # end add flows
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "navy",radius=3, opacity = 1) %>%
+      addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "navy", opacity = 1)  %>%
+      addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .6, opacity = .6, popup = ~popupw, color = "navy", fillColor = "navy", stroke = F )
+
     
   })
 }
