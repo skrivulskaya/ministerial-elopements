@@ -50,6 +50,13 @@ elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
                          "Found: ",elop.raw$Location_Found,"<br/>",
                          "Year Found: ",elop.raw$Year_Found,"<br/>"
 ) #A bit of HTML To make the popups on the lines
+elop.raw$bearing[(!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)] <- bearingRhumb(elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Origin","Latitude_Origin")],elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Found","Latitude_Found")])
+elop.raw$bearClass[(elop.raw$bearing < 45 ) | (elop.raw$bearing >= 315)] <- "North"
+elop.raw$bearClass[(elop.raw$bearing < 135) & (elop.raw$bearing >= 45)] <- "East"
+elop.raw$bearClass[(elop.raw$bearing < 225) & (elop.raw$bearing >= 135)] <- "South"
+elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "West"
+table(elop.raw$bearClass)
+elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
 
 
 #New method for creating lines
@@ -75,8 +82,11 @@ markers.df$midlong <- a$lon
 markers.df$midlat <- a$lat
 
 
-markers.df$bearing <- bearingRhumb(markers.df[,c("Longtitude_Origin","Latitude_Origin")],markers.df[,c("Longtitude_Found","Latitude_Found")])
+# markers.df$bearing <- bearingRhumb(markers.df[,c("Longtitude_Origin","Latitude_Origin")],markers.df[,c("Longtitude_Found","Latitude_Found")])
 #Now can calculate the direction of travel
+
+
+
 arrow.length <- 60000
 arrow.angle <- 30
 
@@ -98,31 +108,29 @@ poly.arrows <- SpatialPolygonsDataFrame(SpatialPolygons(polys),markers.df)
 proj4string(poly.arrows) <- CRS(latlong)
 
 
+#Creating a variable from the bearing
+
 #Mapping Section
 
 #converting to point data frames for mapping
+
+#Randomizing identical points
+
 orig.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Origin)),]
 a<- data.frame(table(orig.spdf$Location_Origin))
 a$Location_Origin <- as.character(a$Var1)
 a$Var1 <- NULL
-
 orig.spdf <- merge(orig.spdf,  a, by="Location_Origin",all=T)
-
-
-
 orig.spdf$Latitude_Origin <-ifelse((orig.spdf$Freq > 1),  orig.spdf$Latitude_Origin - (runif(nrow(orig.spdf))-.5)/40,orig.spdf$Latitude_Origin)
 orig.spdf$Longtitude_Origin <-ifelse((orig.spdf$Freq > 1), orig.spdf$Longtitude_Origin - (runif(nrow(orig.spdf))-.5)/40,orig.spdf$Longtitude_Origin)
 
 coordinates(orig.spdf)=~Longtitude_Origin+Latitude_Origin
 proj4string(orig.spdf) <- CRS(latlong)
 
-
-
 found.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
 coordinates(found.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(found.spdf) <- CRS(latlong)
 
-elop.map <-elop.comp[which(elop.comp$Location_Origin != elop.comp$Location_Found),]
 same.spdf <- elop.comp[which(elop.comp$Location_Origin == elop.comp$Location_Found),]
 coordinates(same.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(same.spdf) <- CRS(latlong)
@@ -139,12 +147,18 @@ ui <- fluidPage(
                #c("all", "1870s","1880s","1890s","1900s","1910-1914")),
   selectizeInput("denomination", "Denomination:",
                  choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))),
-  checkboxInput("CompCheck","Complete cases", value = FALSE, width = NULL)
-)
+  checkboxInput("CompCheck","Complete cases", value = FALSE, width = NULL),
+ checkboxGroupInput("direction", label = h3("Directions"), 
+                    choices = c("Same","North", "East", "West", "South"),
+                    selected = c("Same", "North", "East", "West", "South"))
+  # selectizeInput("direction","Direction: ", choices = c("None"))
+  
+)#end fluidpage
 
 server <- function(input, output, session) {
   
   points.orig <- eventReactive(c(input$range, input$denomination, input$CompCheck), {
+    #TODO: Should be able to make this pull and generate from one data frame all at the same time
     working.spdf <- orig.spdf
     if(input$CompCheck){
       working.spdf <- orig.spdf[which(!is.na(orig.spdf$Latitude_Found)),]
@@ -168,38 +182,61 @@ server <- function(input, output, session) {
     
   }, ignoreNULL = FALSE)#end points.found
   
-  points.connections <- eventReactive(c(input$range, input$denomination), {
-    if (input$denomination == "All"){
-      same.spdf[which(same.spdf$Year >= input$range[1] & same.spdf$Year <= input$range[2]),]
-    }else{
-      same.spdf[which(same.spdf$Year >= input$range[1] & same.spdf$Year <= input$range[2] & same.spdf$Denomination_for_Tableau == input$denomination),]  
+  points.connections <- eventReactive(c(input$range, input$denomination, input$direction), {
+    # if (input$denomination == "All"){
+    #   same.spdf[which(same.spdf$Year >= input$range[1] & same.spdf$Year <= input$range[2]),]
+    # }else{
+    #   same.spdf[which(same.spdf$Year >= input$range[1] & same.spdf$Year <= input$range[2] & same.spdf$Denomination_for_Tableau == input$denomination),]  
+    # }
+    if (!"Same" %in% input$direction){
+      return(same.spdf [which(same.spdf$bearClass == "Same"),])
     }
-    
+    if (input$denomination == "All"){
+      temp.same <- same.spdf
+    }else{
+      temp.same <- same.spdf[which(same.spdf$Denomination_for_Tableau == input$denomination),]
+    }
+    #filter years
+    temp.same <- temp.same[which(temp.same$Year >= input$range[1] & temp.same$Year <= input$range[2]),]
+    # #filter bearing
+    # temp.same <- temp.same[which(temp.same$bearClass %in% input$direction),]
+    # return(complete.lines[
+    return(temp.same)
     
   }, ignoreNULL = FALSE)#end points.found
   
-  lines.connections <- eventReactive(c(input$range, input$denomination), {
+  lines.connections <- eventReactive(c(input$range, input$denomination, input$direction), {
     if (input$denomination == "All"){
-      complete.lines[which(complete.lines$Year >= input$range[1] & complete.lines$Year <= input$range[2]),]
-      
+      temp.lines <- complete.lines
     }else{
-      complete.lines[which(complete.lines$Year >= input$range[1] & complete.lines$Year <= input$range[2] & complete.lines$Denomination_for_Tableau == input$denomination),]  
-    }
-    
+      temp.lines <- complete.lines[which(complete.lines$Denomination_for_Tableau == input$denomination),]
+          }
+    #filter years
+    temp.lines <- temp.lines[which(temp.lines$Year >= input$range[1] & temp.lines$Year <= input$range[2]),]
+    #filter bearing
+    temp.lines <- temp.lines[which(temp.lines$bearClass %in% input$direction),]
+    # return(complete.lines[
+    return(temp.lines)
     
   }, ignoreNULL = FALSE)#end lines.connections
   
-  arrowheads.connections <- eventReactive(c(input$range, input$denomination), {
+  arrowheads.connections <- eventReactive(c(input$range, input$denomination, input$direction), {
+
     if (input$denomination == "All"){
-      poly.arrows[which(poly.arrows$Year >= input$range[1] & poly.arrows$Year <= input$range[2]),]
-      
+      temp.arrows <- poly.arrows
     }else{
-      poly.arrows[which(poly.arrows$Year >= input$range[1] & poly.arrows$Year <= input$range[2] & poly.arrows$Denomination_for_Tableau == input$denomination),]  
+      temp.arrows <- poly.arrows[which(poly.arrows$Denomination_for_Tableau == input$denomination),]
     }
-    
+    #filter years
+    temp.arrows <- temp.arrows[which(temp.arrows$Year >= input$range[1] & temp.arrows$Year <= input$range[2]),]
+    #filter bearing
+    temp.arrows <- temp.arrows[which(temp.arrows$bearClass %in% input$direction),]
+    # return(complete.lines[
+    return(temp.arrows)
     
   }, ignoreNULL = FALSE)#end lines.connections
   
+  output$value <- renderPrint({ input$direction })
   
  
     
