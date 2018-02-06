@@ -87,25 +87,34 @@ markers.df$midlat <- a$lat
 
 
 
-arrow.length <- 60000
+arrow.scale <- 4
 arrow.angle <- 30
 
-a <- data.frame(destPoint(markers.df[,c( "midlong","midlat")], d = arrow.length, b = markers.df$bearing + arrow.angle -180 ))
-markers.df$arrow1Lat <- a$lat
-markers.df$arrow1Lon <- a$lon
-
-a <- data.frame(destPoint(markers.df[,c( "midlong","midlat")], d = arrow.length, b = markers.df$bearing - arrow.angle-180 ))
-markers.df$arrow2Lat <- a$lat
-markers.df$arrow2Lon <- a$lon
-
-
-row.names(markers.df) <- NULL
-polys <- list()
-for (i in 1:nrow(markers.df)) { 
-  polys[[i]] = Polygons(list(Polygon(rbind(c(markers.df$midlong[i],markers.df$midlat[i]), c(markers.df$arrow2Lon[i], markers.df$arrow2Lat[i]), c(markers.df$arrow1Lon[i], markers.df$arrow1Lat[i]),c(markers.df$midlong[i],markers.df$midlat[i])))), as.character(i))
+build.arrowheads <-function(arrow.scale = 4, df = markers.df){
+  lengs <- c(100000,100000,100000,100000,60000,50000,30000,18000,10000,5000,3000,2000,1000)
+  arrow.length <- lengs[arrow.scale]
+  print(paste(arrow.scale, arrow.length))
+  a <- data.frame(destPoint(df[,c( "midlong","midlat")], d = arrow.length, b = df$bearing + arrow.angle -180 ))
+  df$arrow1Lat <- a$lat
+  df$arrow1Lon <- a$lon
+  
+  a <- data.frame(destPoint(df[,c( "midlong","midlat")], d = arrow.length, b = df$bearing - arrow.angle-180 ))
+  df$arrow2Lat <- a$lat
+  df$arrow2Lon <- a$lon
+  
+  
+  row.names(df) <- NULL
+  polys <- list()
+  for (i in 1:nrow(df)) { 
+    polys[[i]] = Polygons(list(Polygon(rbind(c(df$midlong[i],df$midlat[i]), c(df$arrow2Lon[i], df$arrow2Lat[i]), c(df$arrow1Lon[i], df$arrow1Lat[i]),c(df$midlong[i],df$midlat[i])))), as.character(i))
+  }
+  arrowheads <- SpatialPolygonsDataFrame(SpatialPolygons(polys),df)
+  proj4string(arrowheads) <- CRS(latlong)
+  # print(arrowheads)
+  return(arrowheads)
 }
-poly.arrows <- SpatialPolygonsDataFrame(SpatialPolygons(polys),markers.df)
-proj4string(poly.arrows) <- CRS(latlong)
+
+poly.arrrows <- build.arrowheads()
 
 
 #Creating a variable from the bearing
@@ -183,11 +192,6 @@ server <- function(input, output, session) {
   }, ignoreNULL = FALSE)#end points.found
   
   points.connections <- eventReactive(c(input$range, input$denomination, input$direction), {
-    # if (input$denomination == "All"){
-    #   same.spdf[which(same.spdf$Year >= input$range[1] & same.spdf$Year <= input$range[2]),]
-    # }else{
-    #   same.spdf[which(same.spdf$Year >= input$range[1] & same.spdf$Year <= input$range[2] & same.spdf$Denomination_for_Tableau == input$denomination),]  
-    # }
     if (!"Same" %in% input$direction){
       return(same.spdf [which(same.spdf$bearClass == "Same"),])
     }
@@ -198,9 +202,7 @@ server <- function(input, output, session) {
     }
     #filter years
     temp.same <- temp.same[which(temp.same$Year >= input$range[1] & temp.same$Year <= input$range[2]),]
-    # #filter bearing
-    # temp.same <- temp.same[which(temp.same$bearClass %in% input$direction),]
-    # return(complete.lines[
+   
     return(temp.same)
     
   }, ignoreNULL = FALSE)#end points.found
@@ -220,8 +222,15 @@ server <- function(input, output, session) {
     
   }, ignoreNULL = FALSE)#end lines.connections
   
-  arrowheads.connections <- eventReactive(c(input$range, input$denomination, input$direction), {
-
+  arrowheads.connections <- eventReactive(c(input$range, input$denomination, input$direction,input$mymap_zoom), {
+    if(is.null((input$mymap_zoom))){
+      print("build as is")
+      poly.arrows <- build.arrowheads(arrow.scale = 4)
+    }else{
+      poly.arrows <- build.arrowheads(arrow.scale = input$mymap_zoom)
+    }
+    
+    # print(zoom)
     if (input$denomination == "All"){
       temp.arrows <- poly.arrows
     }else{
@@ -245,7 +254,7 @@ server <- function(input, output, session) {
   output$mymap <- renderLeaflet({
     leaflet() %>%
       fitBounds(-129,24.2,-65.58,50.54)%>%
-      addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
+      addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(minZoom = 1, maxZoom = 13, noWrap = F)) %>%
       addLayersControl(
         overlayGroups = c("Origin", "Found","Connections"),
         options = layersControlOptions(collapsed = FALSE)
@@ -262,9 +271,12 @@ server <- function(input, output, session) {
       addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "navy",radius=3, opacity = 1) %>%
       addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "navy", opacity = 1)  %>%
       addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .6, opacity = .6, popup = ~popupw, color = "navy", fillColor = "navy", stroke = F )
-
+      zoom <- input$mymap_zoom
     
   })
 }
 
 shinyApp(ui, server)
+
+# library(rsconnect)
+# deployApp()
