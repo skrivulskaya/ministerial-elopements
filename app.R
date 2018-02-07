@@ -56,7 +56,7 @@ elop.raw$bearClass[(elop.raw$bearing < 135) & (elop.raw$bearing >= 45)] <- "East
 elop.raw$bearClass[(elop.raw$bearing < 225) & (elop.raw$bearing >= 135)] <- "South"
 elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "West"
 table(elop.raw$bearClass)
-elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
+# elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
 
 
 #New method for creating lines
@@ -148,6 +148,7 @@ proj4string(same.spdf) <- CRS(latlong)
 #Building Shiny Interface
 ui <- fluidPage(
   leafletOutput("mymap"),
+  tableOutput("thisTable"),
   p(),
   sliderInput("range", "Range:",
               min = 1870, max = 1915,
@@ -248,7 +249,7 @@ server <- function(input, output, session) {
   output$value <- renderPrint({ input$direction })
   
  
-    
+  output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")]))  
     
     
   output$mymap <- renderLeaflet({
