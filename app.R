@@ -19,7 +19,7 @@ library (geosphere)
 # library(maptools)
 
 
-setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
+# setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 # setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 
@@ -92,7 +92,7 @@ arrow.angle <- 30
 build.arrowheads <-function(arrow.scale = 4, df = markers.df){
   lengs <- c(100000,100000,100000,100000,60000,50000,30000,18000,10000,5000,3000,2000,1000)
   arrow.length <- lengs[arrow.scale]
-  print(paste(arrow.scale, arrow.length))
+  # print(paste(arrow.scale, arrow.length))
   a <- data.frame(destPoint(df[,c( "midlong","midlat")], d = arrow.length, b = df$bearing + arrow.angle -180 ))
   df$arrow1Lat <- a$lat
   df$arrow1Lon <- a$lon
@@ -149,9 +149,10 @@ ui <- fluidPage(
   title = "Runaway Reverends",
   navbarPage("Runaway Reverends",
              tabPanel("Map",
-  fluidRow(
-    column(3,offset = 0, style='padding:40px;',
-           fluidRow(wellPanel(
+                      
+    fluidRow(
+    column(3,offset = 0, style='padding-right:20px;',
+           (wellPanel(
              sliderInput("range", "Date Range:",
                          min = 1870, max = 1914,
                          value = c(1870,1914), sep = ""),
@@ -163,16 +164,20 @@ ui <- fluidPage(
                                 selected = c("Same", "North", "East", "West", "South"))
              ))),
     
-    (column(9,
-            fluidRow(wellPanel(leafletOutput("mymap"))))
-           
-  )
+    column(9,(wellPanel(leafletOutput("mymap")))),
+    column(12,
+           tableOutput("thisTable")
     )
+    #end column
+    
+    )#end fluid row
+  
+), #end tabpanel Map
+tabPanel("Summary"
+# column(2,
+#        tableOutput("thisTable")
+#        )
 ),
-tabPanel("Summary",
-column(2,
-       tableOutput("thisTable")
-       )),
 tabPanel("Raw Data")
 )
 
@@ -244,7 +249,7 @@ server <- function(input, output, session) {
   
   arrowheads.connections <- eventReactive(c(input$range, input$denomination, input$direction,input$mymap_zoom), {
     if(is.null((input$mymap_zoom))){
-      print("build as is")
+      # print("build as is")
       poly.arrows <- build.arrowheads(arrow.scale = 4)
     }else{
       poly.arrows <- build.arrowheads(arrow.scale = input$mymap_zoom)
@@ -269,7 +274,7 @@ server <- function(input, output, session) {
   
   #creating an output table with directions
  
-  output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")]))  
+  output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")],points.orig()@data[,c("Race")]))  
     
     
   output$mymap <- renderLeaflet({

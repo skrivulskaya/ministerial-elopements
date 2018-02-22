@@ -43,7 +43,8 @@ ui <- fluidPage(
                   value = c(1880, 1890),
                   step = 10,
                   width = 400,
-                  dragRange = TRUE) #,
+                  dragRange = TRUE,
+                  sep="") #,
       
       # Selector for type of move -- not needed, I think
       #selectInput("select", 
