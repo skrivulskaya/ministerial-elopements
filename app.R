@@ -12,13 +12,14 @@ rm(list=ls(all=TRUE)) # clear memory
 library(rgdal)
 library(leaflet)
 library(shiny)
+library (geosphere)
+# library(markdown)
 # library(ggmap)
 # library(leaflet.minicharts)
-library (geosphere)
 # library(maptools)
 
 
-# setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
+setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 # setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 
@@ -85,8 +86,6 @@ markers.df$midlat <- a$lat
 # markers.df$bearing <- bearingRhumb(markers.df[,c("Longtitude_Origin","Latitude_Origin")],markers.df[,c("Longtitude_Found","Latitude_Found")])
 #Now can calculate the direction of travel
 
-
-
 arrow.scale <- 4
 arrow.angle <- 30
 
@@ -147,20 +146,40 @@ proj4string(same.spdf) <- CRS(latlong)
 
 #Building Shiny Interface
 ui <- fluidPage(
-  leafletOutput("mymap"),
-  tableOutput("thisTable"),
-  p(),
-  sliderInput("range", "Range:",
-              min = 1870, max = 1915,
-              value = c(1870,1915), sep = ""),
+  title = "Runaway Reverends",
+  navbarPage("Runaway Reverends",
+             tabPanel("Map",
+  fluidRow(
+    column(3,offset = 0, style='padding:40px;',
+           fluidRow(wellPanel(
+             sliderInput("range", "Date Range:",
+                         min = 1870, max = 1914,
+                         value = c(1870,1914), sep = ""),
+             selectizeInput("denomination", "Denomination:",
+                            choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))),
+             checkboxInput("CompCheck","Complete cases", value = FALSE, width = NULL),
+             checkboxGroupInput("direction", label = ("Direction:"), 
+                                choices = c("Same","North", "East", "West", "South"),
+                                selected = c("Same", "North", "East", "West", "South"))
+             ))),
+    
+    (column(9,
+            fluidRow(wellPanel(leafletOutput("mymap"))))
+           
+  )
+    )
+),
+tabPanel("Summary",
+column(2,
+       tableOutput("thisTable")
+       )),
+tabPanel("Raw Data")
+)
+
+  
  # selectInput("decade", "Decade:",
                #c("all", "1870s","1880s","1890s","1900s","1910-1914")),
-  selectizeInput("denomination", "Denomination:",
-                 choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))),
-  checkboxInput("CompCheck","Complete cases", value = FALSE, width = NULL),
- checkboxGroupInput("direction", label = h3("Directions"), 
-                    choices = c("Same","North", "East", "West", "South"),
-                    selected = c("Same", "North", "East", "West", "South"))
+  
   # selectizeInput("direction","Direction: ", choices = c("None"))
   
 )#end fluidpage
@@ -248,6 +267,7 @@ server <- function(input, output, session) {
   
   output$value <- renderPrint({ input$direction })
   
+  #creating an output table with directions
  
   output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")]))  
     
@@ -267,11 +287,11 @@ server <- function(input, output, session) {
       clearMarkers() %>% 
       clearMarkerClusters() %>%
       clearShapes()%>%
-      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "brown",radius=3)%>%
-      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "green",radius=3)%>%#,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "navy",radius=3, opacity = 1) %>%
-      addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "navy", opacity = 1)  %>%
-      addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .6, opacity = .6, popup = ~popupw, color = "navy", fillColor = "navy", stroke = F )
+      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "brown",radius=4)%>%
+      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "green",radius=4)%>%#,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "navy",radius=4, opacity = 1) %>%
+      addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .5)  %>%
+      addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .5, opacity = .5, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
       zoom <- input$mymap_zoom
     
   })
