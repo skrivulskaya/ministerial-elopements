@@ -1,14 +1,8 @@
 rm(list=ls(all=TRUE)) # clear memory
 
 #Mat's new Todo
-    #Impliment the random mover (working for the origins) earlier on so it generates the lines off of the moved points
-    #Move the lost /found same city points over
-#move the arrows over
-#clasify direction
-#put in the direction as a classification
 
-
-# packages<- c("rgdal","leaflet","htmlwidgets","shiny","ggmap") # list the packages that you'll need
+# packages<- c("rgdal","leaflet","htmlwidgets","shiny","ggmap")
 library(rgdal)
 library(leaflet)
 library(shiny)
@@ -18,15 +12,13 @@ library (geosphere)
 # library(leaflet.minicharts)
 # library(maptools)
 
-
-# setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
+setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 # setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 
 latlong <- "+init=epsg:4326"
 
-
-#Loading the geocoded data
+#Load  geocoded data
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 
 #Generate new locations for duplicate places 
@@ -37,10 +29,9 @@ elop.raw$Latitude_Origin <- ifelse(elop.raw$dup_origin, elop.raw$Latitude_Origin
 elop.raw$Longtitude_Origin <- ifelse(elop.raw$dup_origin, elop.raw$Longtitude_Origin - (runif(nrow(elop.raw))-.5)/20,elop.raw$Longtitude_Origin)
 elop.raw$Latitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Latitude_Found - (runif(nrow(elop.raw))-.5)/20,elop.raw$Latitude_Found)
 elop.raw$Longtitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Longtitude_Found - (runif(nrow(elop.raw))-.5)/20,elop.raw$Longtitude_Found)
+#end locations for duplicate places
 
-
-#Make the popup
-
+#Generate html popup
 elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
                          "Denomination: ",elop.raw$Denomination_for_Tableau, "<br/>",
                          "Age: ",elop.raw$Age, "<br/>",
@@ -50,7 +41,9 @@ elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
                          "Age of Female: ",elop.raw$Female_Age, "<br/>",
                          "Found: ",elop.raw$Location_Found,"<br/>",
                          "Year Found: ",elop.raw$Year_Found,"<br/>"
-) #A bit of HTML To make the popups on the lines
+) #end html popup
+
+#Generate directional information
 elop.raw$bearing[(!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)] <- bearingRhumb(elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Origin","Latitude_Origin")],elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Found","Latitude_Found")])
 elop.raw$bearClass[(elop.raw$bearing < 45 ) | (elop.raw$bearing >= 315)] <- "North"
 elop.raw$bearClass[(elop.raw$bearing < 135) & (elop.raw$bearing >= 45)] <- "East"
@@ -58,9 +51,9 @@ elop.raw$bearClass[(elop.raw$bearing < 225) & (elop.raw$bearing >= 135)] <- "Sou
 elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "West"
 table(elop.raw$bearClass)
 # elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
+#end directional information
 
-
-#New method for creating lines
+#Create lines
 elop.comp <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
 row.names(elop.comp) <- NULL
 
@@ -70,22 +63,18 @@ complete.lines <- SpatialLinesDataFrame(a,elop.comp)
 negs <- as.matrix(coordinates(complete.lines[94,])[[1]][[2]])
 negs[,1] <- (negs[,1])-360
 complete.lines@lines[[94]]@Lines[[2]]@coords[] <- negs
+#end create lines
 
-#Making the arrows for the lines
-
+#Make directional arrows for the lines
 markers.df <- elop.comp[which(elop.comp$Location_Origin != elop.comp$Location_Found),]
-
 markers.df$midlong <- apply(markers.df[,c("Longtitude_Origin","Longtitude_Found")], 1, mean) 
 markers.df$midlat <- apply(markers.df[,c("Latitude_Origin","Latitude_Found")], 1, mean) 
 a <- (gcIntermediate(markers.df[,c("Longtitude_Origin","Latitude_Origin")], markers.df[,c("Longtitude_Found","Latitude_Found")], n=1) )
 a <- do.call(rbind.data.frame, a)
 markers.df$midlong <- a$lon
 markers.df$midlat <- a$lat
-
-
 # markers.df$bearing <- bearingRhumb(markers.df[,c("Longtitude_Origin","Latitude_Origin")],markers.df[,c("Longtitude_Found","Latitude_Found")])
 #Now can calculate the direction of travel
-
 arrow.scale <- 4
 arrow.angle <- 30
 
@@ -101,7 +90,6 @@ build.arrowheads <-function(arrow.scale = 4, df = markers.df){
   df$arrow2Lat <- a$lat
   df$arrow2Lon <- a$lon
   
-  
   row.names(df) <- NULL
   polys <- list()
   for (i in 1:nrow(df)) { 
@@ -114,15 +102,11 @@ build.arrowheads <-function(arrow.scale = 4, df = markers.df){
 }
 
 poly.arrrows <- build.arrowheads()
-
-
-#Creating a variable from the bearing
+#end directional arrows
 
 #Mapping Section
-
-#converting to point data frames for mapping
-
-#Randomizing identical points
+#Convert to point data frames for mapping
+#Randomize identical points
 
 orig.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Origin)),]
 a<- data.frame(table(orig.spdf$Location_Origin))
@@ -142,9 +126,10 @@ proj4string(found.spdf) <- CRS(latlong)
 same.spdf <- elop.comp[which(elop.comp$Location_Origin == elop.comp$Location_Found),]
 coordinates(same.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(same.spdf) <- CRS(latlong)
+#end mapping section
 
 
-#Building Shiny Interface
+#Build Shiny interface
 ui <- fluidPage(
   title = "Runaway Reverends",
   navbarPage("Runaway Reverends",
@@ -165,29 +150,19 @@ ui <- fluidPage(
              ))),
     
     column(9,(wellPanel(leafletOutput("mymap")))),
-    column(12,
-           tableOutput("thisTable")
-    )
-    #end column
     
-    )#end fluid row
-  
-), #end tabpanel Map
-tabPanel("Summary"
-# column(2,
-#        tableOutput("thisTable")
-#        )
-),
-tabPanel("Raw Data")
+    column(12,
+           tableOutput("thisTable"))
+    
+    ) #end column
+    ),#end first tabPanel
+    tabPanel("Summary"),
+    tabPanel("Raw Data")
+    
+) #end tabpanel Map
 )
-
   
- # selectInput("decade", "Decade:",
-               #c("all", "1870s","1880s","1890s","1900s","1910-1914")),
-  
-  # selectizeInput("direction","Direction: ", choices = c("None"))
-  
-)#end fluidpage
+#end fluidpage
 
 server <- function(input, output, session) {
   
@@ -303,6 +278,7 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui, server)
+#end Shiny app
 
 # library(rsconnect)
 # deployApp()

@@ -6,6 +6,10 @@ packages<- c("dygraphs", "maptools","rgdal","leaflet","htmlwidgets","shiny","ggm
 
 #Load the packages, if they don't load you might need to install them first
 lapply(packages, require, character.only=T) 
+library(shiny)
+library(dygraphs)
+library(dplyr)
+library(xts)
 
 #Set working directory
 setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements/SK-shiny-testing")
@@ -13,106 +17,54 @@ setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/m
 #Load the geocoded data
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 
+#Write table in R
+denombyyear <- table(elop.raw$Year, elop.raw$Denomination_for_Tableau)
+
+#Load the new file
+dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
+
+#Build a dygraph
+Methodist <- as.xts(ts(start = c(1870), end=c(1914),
+                       data = c(dby.raw$Methodist)))
+
+Baptist <- as.xts(ts(start = c(1870), end=c(1914),
+                     data = c(dby.raw$Baptist)))
+
+Presbyterian <- as.xts(ts(start = c(1870), end=c(1914),
+                          data = c(dby.raw$Presbyterian)))
+
+Congregational <- as.xts(ts(start = c(1870), end=c(1914),
+                            data = c(dby.raw$Congregational)))
+
+majordems <- cbind(Methodist, Baptist, Presbyterian, Congregational)
+
+dygraph(majordems) %>% 
+  dyAxis("y", label = "Number of Runaway Ministers") %>% 
+  dySeries(majordems$...1, label = "Methodist") %>% 
+  dySeries(majordems$...2, label = "Baptist") %>% 
+  dySeries(majordems$...3, label = "Presbyterian") %>% 
+  dySeries(majordems$...4, label = "Congregational") %>% 
+  dyRangeSelector(height = 30)
+
 #Build Shiny Interface
 ui <- fluidPage(
-  
-  #Name the app 
-  titlePanel("Runaway Reverends, 1870-1914", windowTitle="Runaway Reverends in the Gilded Age and Progressive Era"),
-  
-  #Build the layout
+  titlePanel("Runaways by Denomination and Year"),
   sidebarLayout(
-    
-    #Inputs go here
-    sidebarPanel(
-      
-      #Select dates
-      sliderInput("YearInput", "Date Range:",
-                  min = 1870, max = 1914,
-                  value = c(1870,1914), sep = ""),
-      
-      #Select denomination
-      checkboxGroupInput("DenominationInput", "Denomination:", 
-                         choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau))),
-                         selected = "All", inline = FALSE, width = NULL, choiceNames = NULL, choiceValues = NULL),
-      
-      #Select state
-      selectizeInput("StateInput", "State of Origin:",
-                     choices = c("All", sort(unique(elop.raw$State_Origin))))
-    ),
-    
-    #Results go here
-    mainPanel(
-      plotOutput("YearDenominationState"),
-      br(),br(),
-      tableOutput("Results")
+    sideparPanel(
+      selectInput("Denomination", "Denomination",
+                  choices = dyAxis = "Methodist", "Baptist", "Presbyterian", "Congregational"),
+      mainPanel(
+        dygraphOutput("majordems")
       )
+    )
   )
 )
 
 server <- function(input, output, session) {
-  
-  #figuring out visualizations
-  # decade_by_denomination <- elop.raw %>%
-  #   group_by(Decade, Denomination_for_Tableau) %>%
-  #   tally()
-  # ggplot(data = decade_by_denomination, aes(x = Decade, y = n, group = Denomination_for_Tableau, color = Denomination_for_Tableau)) +
-  #   geom_line()
-  
-  
-  #moving on with Shiny visualizations
-    filtered <-reactive({
-      elop.raw %>%
-        filter(Year == input$YearInput,
-               Denomination == input$DenominationInput
-        )
-    })
-      
-   output$YearDenominationState <- renderPlot({ decade_by_denomination <- elop.raw %>%
-      group_by(Decade, Denomination_for_Tableau) %>%
-      tally()
-    ggplot(data = decade_by_denomination, aes(x = Decade, y = n, group = Denomination_for_Tableau, color = Denomination_for_Tableau)) +
-      geom_line()
-  })
-   
-   output$Results <- renderTable({
-     filtered()
-   })
 }
 
 shinyApp(ui, server)
 
 #Visualizations with dygraphs
-  
-  #write table in R and export it to .csv  
-    denombyyear <- table(elop.raw$Year, elop.raw$Denomination_for_Tableau)
-    write.csv(mydf, file = "denombyyear.csv")
 
-  #Load the new file
-  dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
-
-  #building a dygraph
-  library(dygraphs)
-  library(xts)
-
-  Methodist <- as.xts(ts(start = c(1870), end=c(1914),
-                     data = c(dby.raw$Methodist)))
-
-  Baptist <- as.xts(ts(start = c(1870), end=c(1914),
-                     data = c(dby.raw$Baptist)))
-
-  Presbyterian <- as.xts(ts(start = c(1870), end=c(1914),
-                          data = c(dby.raw$Presbyterian)))
-  
-  Congregational <- as.xts(ts(start = c(1870), end=c(1914),
-                            data = c(dby.raw$Congregational)))
-
-  majordems <- cbind(Methodist, Baptist, Presbyterian, Congregational)
-
-  dygraph(majordems) %>% 
-    dyAxis("y", label = "Number of Runaway Ministers") %>% 
-    dySeries(majordems$...1, label = "Methodist") %>% 
-    dySeries(majordems$...2, label = "Baptist") %>% 
-    dySeries(majordems$...3, label = "Presbyterian") %>% 
-    dySeries(majordems$...4, label = "Congregational") %>% 
-    dyRangeSelector(height = 30)
   
