@@ -1,18 +1,35 @@
 rm(list=ls(all=TRUE)) # clear memory
 
-#Mat's new Todo
+# to do - March 7, 2018:
+  # city size chart & intergration into the Shiny app tabs (Dan)
+  # fix the New Zealand line (Mat)
+  # integrate the dygraphs thing into another tab
+      # example: https://faidherbard.shinyapps.io/joburgdygraph/
+      # code for example: https://stackoverflow.com/questions/30176303/using-dygraph-with-shiny
+  # minor - rename tabs so they make sense as to what they are actually doing (Suzanna)
+  # on the home page, display the following output tables:
+    # summary table of the direction in which ministers moved (like the old table we had as output but prettier)
+    # summary table of the number of ministers by denomination
+    # summary table of how many ministers are found or return to the same place (vs. those who are never found)
+    # brainstorm to see if there is any other information that would be helpful to display
+  # find a good-looking way to display the raw data on that tab
+    # include the following columns: Full_Name, Year, Age, Location_Origin, Denomination, Accusations, Female_Involved, Female_Age, Found_Y.N., Year_Found, Location_Found, Arrested_Y_N
+
 
 # packages<- c("rgdal","leaflet","htmlwidgets","shiny","ggmap")
 library(rgdal)
 library(leaflet)
 library(shiny)
 library (geosphere)
+library(dygraphs)
+library(dplyr)
+library(xts)
 # library(markdown)
 # library(ggmap)
 # library(leaflet.minicharts)
 # library(maptools)
 
-setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
+# setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 # setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 
