@@ -12,6 +12,8 @@ rm(list=ls(all=TRUE)) # clear memory
     # summary table of the number of ministers by denomination
     # summary table of how many ministers are found or return to the same place (vs. those who are never found)
     # brainstorm to see if there is any other information that would be helpful to display
+    # Add text describing the filter above the tables
+    # Add complete cases into the table of where things are found.
   # find a good-looking way to display the raw data on that tab
     # include the following columns: Full_Name, Year, Age, Location_Origin, Denomination, Accusations, Female_Involved, Female_Age, Found_Y.N., Year_Found, Location_Found, Arrested_Y_N
 
@@ -66,7 +68,14 @@ elop.raw$bearClass[(elop.raw$bearing < 45 ) | (elop.raw$bearing >= 315)] <- "Nor
 elop.raw$bearClass[(elop.raw$bearing < 135) & (elop.raw$bearing >= 45)] <- "East"
 elop.raw$bearClass[(elop.raw$bearing < 225) & (elop.raw$bearing >= 135)] <- "South"
 elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "West"
-table(elop.raw$bearClass)
+
+
+elop.raw[which(elop.raw$Location_Origin == elop.raw$Location_Found),]$bearClass <- 'Same'
+elop.raw[is.na(elop.raw$Location_Found),"bearClass"] <- 'Never'
+elop.raw$bearClass <- factor(elop.raw$bearClass, levels=c("North","South", "East", "West","Same","Never"))
+
+
+# table(elop.raw$bearClass)
 # elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
 #end directional information
 
@@ -146,6 +155,18 @@ proj4string(same.spdf) <- CRS(latlong)
 #end mapping section
 
 
+
+#table testing
+
+
+#change the order by factorizing
+table(elop.raw$bearClass)
+table(elop.raw$Denomination_for_Tableau)
+
+
+
+
+
 #Build Shiny interface
 ui <- fluidPage(
   title = "Runaway Reverends",
@@ -185,6 +206,9 @@ server <- function(input, output, session) {
   
   points.orig <- eventReactive(c(input$range, input$denomination, input$CompCheck), {
     #TODO: Should be able to make this pull and generate from one data frame all at the same time
+    #TODO: Make this work incrementially and return a final data frame rather than do everything independantly
+    #TODO: Get in the bearClass filter: temp.lines <- temp.lines[which(temp.lines$bearClass %in% input$direction),]
+
     working.spdf <- orig.spdf
     if(input$CompCheck){
       working.spdf <- orig.spdf[which(!is.na(orig.spdf$Latitude_Found)),]
@@ -266,7 +290,7 @@ server <- function(input, output, session) {
   
   #creating an output table with directions
  
-  output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")],points.orig()@data[,c("Race")]))  
+  output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")]),striped = T, colnames = F)  
     
     
   output$mymap <- renderLeaflet({
