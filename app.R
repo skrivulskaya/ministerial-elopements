@@ -1,9 +1,14 @@
-rm(list=ls(all=TRUE)) # clear memory
+rm(list=ls(all=TRUE)) #clear memory
+
+# new to do - March 9, 2019:
+  # new issue: when "Connections" is unselected on the map, cases where orgin = destination disappear
+  # known issue: output table with directions is not responsive to all of the inputs at the top
+  # make the text at the top of the dygraphs tab not look weird (Suzanna/Mat?)
 
 # to do - March 7, 2018:
   # city size chart & intergration into the Shiny app tabs (Dan)
   # fix the New Zealand line (Mat)
-  # integrate the dygraphs thing into another tab
+  # integrate the dygraphs thing into another tab (Suzanna)
       # example: https://faidherbard.shinyapps.io/joburgdygraph/
       # code for example: https://stackoverflow.com/questions/30176303/using-dygraph-with-shiny
   # minor - rename tabs so they make sense as to what they are actually doing (Suzanna)
@@ -12,13 +17,10 @@ rm(list=ls(all=TRUE)) # clear memory
     # summary table of the number of ministers by denomination
     # summary table of how many ministers are found or return to the same place (vs. those who are never found)
     # brainstorm to see if there is any other information that would be helpful to display
-    # Add text describing the filter above the tables
-    # Add complete cases into the table of where things are found.
-  # find a good-looking way to display the raw data on that tab
-    # include the following columns: Full_Name, Year, Age, Location_Origin, Denomination, Accusations, Female_Involved, Female_Age, Found_Y.N., Year_Found, Location_Found, Arrested_Y_N
-
-
-# packages<- c("rgdal","leaflet","htmlwidgets","shiny","ggmap")
+    # add text describing the filter above the tables
+    # add complete cases into the table of where things are found
+  # add raw data tab (Suzanna) - done 
+  
 library(rgdal)
 library(leaflet)
 library(shiny)
@@ -26,10 +28,11 @@ library (geosphere)
 library(dygraphs)
 library(dplyr)
 library(xts)
-# library(markdown)
-# library(ggmap)
-# library(leaflet.minicharts)
-# library(maptools)
+library(plotly)
+library(DT)
+library(crosstalk)
+library(dygraphs)
+library(datasets)
 
 # setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
@@ -37,11 +40,37 @@ library(xts)
 
 latlong <- "+init=epsg:4326"
 
-#Load  geocoded data
+#load geocoded data
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 
-#Generate new locations for duplicate places 
 
+#build the raw data table
+raw.data.tab <- read.csv("raw_data_tab.csv",stringsAsFactors = F)
+rdt <- raw.data.tab %>%
+  tibble::rownames_to_column()
+#end raw data table
+
+
+#build the dygraph tables
+denombyyear <- table(elop.raw$Year, elop.raw$Denomination_for_Tableau)
+write.csv(denombyyear, file = "denombyyear.csv")
+dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
+#build xts objects for dygraph tab
+Methodist <- as.xts(ts(start = c(1870), end=c(1914),
+                       data = c(dby.raw$Methodist)))
+Baptist <- as.xts(ts(start = c(1870), end=c(1914),
+                     data = c(dby.raw$Baptist)))
+Presbyterian <- as.xts(ts(start = c(1870), end=c(1914),
+                          data = c(dby.raw$Presbyterian)))
+Congregational <- as.xts(ts(start = c(1870), end=c(1914),
+                            data = c(dby.raw$Congregational)))
+
+#combine xts objects for dygraph
+majordems <- cbind(Methodist, Baptist, Presbyterian, Congregational)
+#end dygraph tables
+
+
+#generate new locations for duplicate places 
 elop.raw$dup_origin <- elop.raw$Location_Origin %in% elop.raw[duplicated(elop.raw$Location_Origin),]$Location_Origin
 elop.raw$dup_found <- elop.raw$Location_Found %in% elop.raw[duplicated(elop.raw$Location_Found),]$Location_Found
 elop.raw$Latitude_Origin <- ifelse(elop.raw$dup_origin, elop.raw$Latitude_Origin - (runif(nrow(elop.raw))-.5)/20,elop.raw$Latitude_Origin)
@@ -50,7 +79,7 @@ elop.raw$Latitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Latitude_Found - 
 elop.raw$Longtitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Longtitude_Found - (runif(nrow(elop.raw))-.5)/20,elop.raw$Longtitude_Found)
 #end locations for duplicate places
 
-#Generate html popup
+#generate html popup
 elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
                          "Denomination: ",elop.raw$Denomination_for_Tableau, "<br/>",
                          "Age: ",elop.raw$Age, "<br/>",
@@ -62,27 +91,22 @@ elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
                          "Year Found: ",elop.raw$Year_Found,"<br/>"
 ) #end html popup
 
-#Generate directional information
+#generate directional information
 elop.raw$bearing[(!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)] <- bearingRhumb(elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Origin","Latitude_Origin")],elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Found","Latitude_Found")])
 elop.raw$bearClass[(elop.raw$bearing < 45 ) | (elop.raw$bearing >= 315)] <- "North"
 elop.raw$bearClass[(elop.raw$bearing < 135) & (elop.raw$bearing >= 45)] <- "East"
 elop.raw$bearClass[(elop.raw$bearing < 225) & (elop.raw$bearing >= 135)] <- "South"
 elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "West"
-
-
 elop.raw[which(elop.raw$Location_Origin == elop.raw$Location_Found),]$bearClass <- 'Same'
 elop.raw[is.na(elop.raw$Location_Found),"bearClass"] <- 'Never'
 elop.raw$bearClass <- factor(elop.raw$bearClass, levels=c("North","South", "East", "West","Same","Never"))
-
-
 # table(elop.raw$bearClass)
 # elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
 #end directional information
 
-#Create lines
+#create lines
 elop.comp <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
 row.names(elop.comp) <- NULL
-
 a <- (gcIntermediate(elop.comp[,c("Longtitude_Origin","Latitude_Origin")], elop.comp[,c("Longtitude_Found","Latitude_Found")],addStartEnd = T, breakAtDateLine = T, n=150, sp = T) )
 complete.lines <- SpatialLinesDataFrame(a,elop.comp)
 #Fixing a dateline issue for that one that ran to new zealand: TODO: Still not perfect
@@ -91,7 +115,7 @@ negs[,1] <- (negs[,1])-360
 complete.lines@lines[[94]]@Lines[[2]]@coords[] <- negs
 #end create lines
 
-#Make directional arrows for the lines
+#make directional arrows for the lines
 markers.df <- elop.comp[which(elop.comp$Location_Origin != elop.comp$Location_Found),]
 markers.df$midlong <- apply(markers.df[,c("Longtitude_Origin","Longtitude_Found")], 1, mean) 
 markers.df$midlat <- apply(markers.df[,c("Latitude_Origin","Latitude_Found")], 1, mean) 
@@ -130,9 +154,9 @@ build.arrowheads <-function(arrow.scale = 4, df = markers.df){
 poly.arrrows <- build.arrowheads()
 #end directional arrows
 
-#Mapping Section
-#Convert to point data frames for mapping
-#Randomize identical points
+#mapping section
+#convert to point data frames for mapping
+#randomize identical points
 
 orig.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Origin)),]
 a<- data.frame(table(orig.spdf$Location_Origin))
@@ -155,26 +179,20 @@ proj4string(same.spdf) <- CRS(latlong)
 #end mapping section
 
 
-
 #table testing
-
-
 #change the order by factorizing
 table(elop.raw$bearClass)
 table(elop.raw$Denomination_for_Tableau)
 
 
 
-
-
-#Build Shiny interface
+#build Shiny interface
 ui <- fluidPage(
   title = "Runaway Reverends",
   navbarPage("Runaway Reverends",
-             tabPanel("Map",
-                      
+             tabPanel("Home",
     fluidRow(
-    column(3,offset = 0, style='padding-right:20px;',
+    column(3,offset = 0, style='padding-right:10px;',
            (wellPanel(
              sliderInput("range", "Date Range:",
                          min = 1870, max = 1914,
@@ -184,23 +202,26 @@ ui <- fluidPage(
              checkboxInput("CompCheck","Complete cases", value = FALSE, width = NULL),
              checkboxGroupInput("direction", label = ("Direction:"), 
                                 choices = c("Same","North", "East", "West", "South"),
-                                selected = c("Same", "North", "East", "West", "South"))
-             ))),
-    
+                                selected = c("Same", "North", "East", "West", "South"))))),
     column(9,(wellPanel(leafletOutput("mymap")))),
-    
-    column(12,
-           tableOutput("thisTable"))
-    
-    ) #end column
+    column(12, tableOutput("thisTable"))) #end column
     ),#end first tabPanel
-    tabPanel("Summary"),
-    tabPanel("Raw Data")
     
-) #end tabpanel Map
-)
-  
-#end fluidpage
+    tabPanel("Settlement Size"),
+    
+    tabPanel("Four Major Denominations",
+             fluidRow(titlePanel("Number of Runaway Ministers among Four Major Denominations by Year, 1970-1914"),
+                      verbatimTextOutput("dygraph_description"),
+                      br(),
+                      wellPanel(dygraphOutput("dygraph")))),
+    
+    tabPanel("Raw Data",
+             fluidRow(
+               wellPanel(DT::dataTableOutput("x1"),
+                         fluidRow(p(class = 'text-center')))))
+  ) #end navbarPage
+) #end fluidpage
+
 
 server <- function(input, output, session) {
   
@@ -288,10 +309,9 @@ server <- function(input, output, session) {
   
   output$value <- renderPrint({ input$direction })
   
-  #creating an output table with directions
+  #create an output table with directions
  
   output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")]),striped = T, colnames = F)  
-    
     
   output$mymap <- renderLeaflet({
     leaflet() %>%
@@ -308,13 +328,62 @@ server <- function(input, output, session) {
       clearMarkers() %>% 
       clearMarkerClusters() %>%
       clearShapes()%>%
-      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "brown",radius=4)%>%
-      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "green",radius=4)%>%#,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "navy",radius=4, opacity = 1) %>%
-      addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .5)  %>%
-      addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .5, opacity = .5, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
+      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#882255",radius=4, opacity = .8)%>%
+      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#44AA99",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "#FFFFC7uniqu",radius=4, opacity = .8) %>%
+      addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .3)  %>%
+      addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .3, opacity = .3, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
       zoom <- input$mymap_zoom
     
+  })
+  
+  #output raw data table
+  #outputting table with raw data
+  d <- SharedData$new(rdt, ~rowname)
+  
+  # highlight selected rows in the table
+  output$x1 <- DT::renderDataTable(
+    {rdt2 <- rdt[d$selection(),]
+    dt <- DT::datatable(rdt, rownames = FALSE, 
+                        options = list(
+                          #hide the "rownames" column
+                          columnDefs = list(list(visible=FALSE,targets=c(0))),
+                          #define default number of rows displayed
+                          pageLength = 20, 
+                          #select view options for number of rows displayed
+                          lengthMenu = c (20, 50, 100, 200, 266)))
+    if (NROW(rdt2) == 0) {
+      dt
+    } else {
+      DT::formatStyle(dt, "Rowname", target = "row",
+                      color = DT::styleEqual(rdt2$rowname, rep("white", length(rdt2$rowname))),
+                      backgroundColor = DT::styleEqual(rdt2$rowname, rep("black", length(rdt2$rowname))))  
+    }
+    })
+  
+  #output dygraph
+  output$dygraph_description <- renderText({
+    "This graph represents the annual number of elopements among the ministers in four major Protestant denominations.
+The Methodists were most represented, with 90 elopers. 
+The Baptists came in second at 56. 
+The Presbyterians were third with 17. 
+Finally, the Congregationalists came in at 11 total elopements. 
+Hovering over any year with the mouse will summarize the number of eloping ministers by denomination for that year. 
+Use the slider at the bottom to zoom in on a specific date range.
+Please note that since exact elopements dates were not always available in the dataset, the month of January was used by default for every year represented in the graph."
+  })
+  output$dygraph <- renderDygraph({
+    dygraph(majordems)%>% 
+      dyAxis("y", label = "Number of Runaway Ministers", valueRange = c(0, 6)) %>% 
+      dySeries(majordems$...1, label = "Methodist",
+               drawPoints = TRUE, color = "#CC6677", pointSize = 4, strokeWidth = 2) %>% 
+      dySeries(majordems$...2, label = "Baptist",
+               drawPoints = TRUE, color = "#44AA99", pointSize = 4, strokeWidth = 2) %>% 
+      dySeries(majordems$...3, label = "Presbyterian",
+               drawPoints = TRUE, color = "#473335", pointSize = 4, strokeWidth = 2) %>% 
+      dySeries(majordems$...4, label = "Congregational",
+               drawPoints = TRUE, color = "#A09435", pointSize = 4, strokeWidth = 2) %>% 
+      dyRangeSelector(height = 30)
   })
 }
 
@@ -322,4 +391,4 @@ shinyApp(ui, server)
 #end Shiny app
 
 # library(rsconnect)
-# deployApp()
+#deployApp()

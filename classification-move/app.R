@@ -22,13 +22,13 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       sliderInput("theYear",
-                  "Number of bins:",
+                  "Date Range:",
                   #min = 1,
                   #min = as.integer(min(df$decadeLeft)),
                   #min = tapply(df$decadeLeft, FUN = min),
                   min = 1870,
                   max = 1914,
-                  value = c(1880, 1890),
+                  value = c(1870, 1914),
                   step = 1,
                   width = 400,
                   dragRange = TRUE,
@@ -75,9 +75,6 @@ server <- function(input, output) {
       
       # Just a reminder:
       # df <- data.frame(yearLeft, origClass, destClass, origPlace, destPlace)
- 
-      
-      
       
       ##########
       #SAME SIZE
@@ -104,9 +101,6 @@ server <- function(input, output) {
       
       sameSize = sameSize + currentSum
       print(sameSize)
-        
-        
-        
         
         
       ###############
@@ -136,10 +130,6 @@ server <- function(input, output) {
       upSize =upSize + currentSum
       print(upSize)
         
-      
-      
-      
-      
       ##############
       #ORIGIN LARGER
       ##############
@@ -165,9 +155,6 @@ server <- function(input, output) {
       
       downSize = downSize + currentSum
       print(downSize)
-      
-      
-      
 
       #################
       # If the origin city and destination city are the same, add to the same city variable.
@@ -194,22 +181,12 @@ server <- function(input, output) {
       
       sameCity = sameCity + currentSum
       
-        
-
-      
     } #for statement, looping through the years selected
-    
-
-    
-    
-    
-    
+  
     summedList <- c(upSize, sameSize, downSize, sameCity)
     return(summedList)
     
   }) #locationChange reactive function
-  
-  
   
   wentSmaller <- 1
   wentLarger <- 3
@@ -218,7 +195,6 @@ server <- function(input, output) {
     
     # Render a barplot
 
-    
     barplot(
       c(locationChange()[1],locationChange()[2],locationChange()[3],locationChange()[4]),
             ylim=c(0,40),
