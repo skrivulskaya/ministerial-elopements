@@ -13,11 +13,11 @@ rm(list=ls(all=TRUE)) #clear memory
       # code for example: https://stackoverflow.com/questions/30176303/using-dygraph-with-shiny
   # minor - rename tabs so they make sense as to what they are actually doing (Suzanna)
   # on the home page, display the following output tables:
-    # summary table of the direction in which ministers moved (like the old table we had as output but prettier)
+    # DONE summary table of the direction in which ministers moved (like the old table we had as output but prettier)
     # summary table of the number of ministers by denomination
-    # summary table of how many ministers are found or return to the same place (vs. those who are never found)
+    # DONE summary table of how many ministers are found or return to the same place (vs. those who are never found): Incorperated into new table
     # brainstorm to see if there is any other information that would be helpful to display
-    # add text describing the filter above the tables
+    # DONE add text describing the filter above the tables
     # add complete cases into the table of where things are found
   # add raw data tab (Suzanna) - done 
   
@@ -199,13 +199,18 @@ ui <- fluidPage(
                          value = c(1870,1914), sep = ""),
              selectizeInput("denomination", "Denomination:",
                             choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))),
-             checkboxInput("CompCheck","Complete cases", value = FALSE, width = NULL),
+             checkboxInput("CompCheck","Only Found", value = FALSE, width = NULL),
              checkboxGroupInput("direction", label = ("Direction:"), 
                                 choices = c("Same","North", "East", "West", "South"),
                                 selected = c("Same", "North", "East", "West", "South"))))),
     column(9,(wellPanel(leafletOutput("mymap")))),
     column(12, textOutput("textHeader")),
-    column(12, tableOutput("thisTable"))#end column
+    column(12, br()),
+    column(12, tableOutput("directionTable")),
+    column(12, hr()),
+    column(12, h4("Denominations: ")),
+    column(12, tableOutput("denominationTable"))#end column
+    #end column
     ) #end fluidrow
     ),#end first tabPanel
     
@@ -236,7 +241,7 @@ server <- function(input, output, session) {
     if(input$CompCheck){
       working.spdf <- orig.spdf[which(!is.na(orig.spdf$Latitude_Found)),]
     }
-    working.spdf <- working.spdf[which(working.spdf$bearClass %in% input$direction),]
+    working.spdf <- working.spdf[which(working.spdf$bearClass %in% c(input$direction, "Never")),]
     
     if (input$denomination == "All"){
       return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2]),])
@@ -343,7 +348,9 @@ server <- function(input, output, session) {
   
   #create an output table with directions
  
-  output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")]),striped = T, colnames = F)  
+  output$directionTable <- renderTable(table(points.orig()@data[,c("bearClass")]),striped = T, colnames = F)
+  output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F)
+  
   output$textHeader <- renderText(text.filter())  
   output$mymap <- renderLeaflet({
     leaflet() %>%
@@ -362,7 +369,7 @@ server <- function(input, output, session) {
       clearShapes()%>%
       addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#882255",radius=4, opacity = .8)%>%
       addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#44AA99",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "#FFFFC7uniqu",radius=4, opacity = .8) %>%
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "#FFFFC7",radius=4, opacity = .8) %>%
       addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .3)  %>%
       addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .3, opacity = .3, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
       zoom <- input$mymap_zoom
