@@ -1,11 +1,4 @@
 rm(list=ls(all=TRUE)) #clear memory
-
-# new to do - March 9, 2019:
-
-# to do - March 7, 2018:
-  # on the home page, display the following output tables:
-    # brainstorm to see if there is any other information that would be helpful to display
-  # add raw data tab (Suzanna) - done 
   
 library(rgdal)
 library(leaflet)
@@ -30,6 +23,21 @@ latlong <- "+init=epsg:4326"
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 
 
+#build settlement size data frame
+mData <- read.csv("ministerial_elopements_geocoded.csv", header=TRUE)
+
+#get our origin and destination classifications, and the decades
+origClass <- mData$Location_Origin_Size_Classification
+destClass <- mData$Location_Found_Size_Classification
+origPlace <- mData$Location_Origin
+destPlace <- mData$Location_Found
+yearLeft <- mData$Year
+
+#construct our data frame, making sure the string values are not factors
+df <- data.frame(yearLeft, origClass, destClass, origPlace, destPlace, stringsAsFactors = FALSE)
+#end settlement size data frame
+
+
 #build the raw data table
 raw.data.tab <- read.csv("raw_data_tab.csv",stringsAsFactors = F)
 rdt <- raw.data.tab %>%
@@ -38,9 +46,10 @@ rdt <- raw.data.tab %>%
 
 
 #build the dygraph tables
-denombyyear <- table(elop.raw$Year, elop.raw$Denomination_for_Tableau)
-write.csv(denombyyear, file = "denombyyear.csv")
-dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
+dby.raw <- as.data.frame.matrix(table(elop.raw$Year, elop.raw$Denomination_for_Tableau))
+# write.csv(denombyyear, file = "denombyyear.csv")
+# dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
+
 #build xts objects for dygraph tab
 Methodist <- as.xts(ts(start = c(1870), end=c(1914),
                        data = c(dby.raw$Methodist)))
@@ -143,7 +152,6 @@ poly.arrrows <- build.arrowheads()
 #mapping section
 #convert to point data frames for mapping
 #randomize identical points
-
 orig.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Origin)),]
 a<- data.frame(table(orig.spdf$Location_Origin))
 a$Location_Origin <- as.character(a$Var1)
@@ -190,28 +198,36 @@ ui <- fluidPage(
                                 choices = c("Same","North", "East", "West", "South"),
                                 selected = c("Same", "North", "East", "West", "South"))))),
     column(9,(wellPanel(leafletOutput("mymap")))),
-    column(12, textOutput("textHeader")),
+    column(12, verbatimTextOutput("textHeader")),
     column(12, br()),
     column(12, tableOutput("directionTable")),
     column(12, hr()),
     column(12, h4("Denominations: ")),
     column(12, tableOutput("denominationTable"))#end column
-    #end column
     ) #end fluidrow
     ),#end first tabPanel
     
-    tabPanel("Settlement Size"),
+    tabPanel("Settlement Size",
+             sidebarLayout(
+               column(3, offset = 0, style='padding-right:10px;',
+                 wellPanel(sliderInput("theYear","Date Range:", min = 1870, max = 1914, value = c(1870, 1914),
+                             step = 1, width = 400, dragRange = TRUE, sep= ''))),
+               column(9, wellPanel(
+                 plotOutput("barplot"), br(), htmlOutput("text_summary"))))
+    ), #end Settlement Size tabPanel
     
     tabPanel("Four Major Denominations",
-             fluidRow(titlePanel("Number of Runaway Ministers among Four Major Denominations by Year, 1970-1914"),
-                      verbatimTextOutput("dygraph_description"),
-                      br(),
-                      wellPanel(dygraphOutput("dygraph")))),
+             fluidRow(
+               wellPanel(dygraphOutput("dygraph"),
+                         br(),
+                         htmlOutput("dygraph_description")))
+    ), #end Major Denominations tabPanel
     
     tabPanel("Raw Data",
              fluidRow(
                wellPanel(DT::dataTableOutput("x1"),
-                         fluidRow(p(class = 'text-center')))))
+                         fluidRow(p(class = 'text-center'))))
+    ) #end Raw Data tabPanel
   ) #end navbarPage
 ) #end fluidpage
 
@@ -219,9 +235,7 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   points.orig <- eventReactive(c(input$range, input$denomination, input$CompCheck, input$direction), {
-    #TODO: Should be able to make this pull and generate from one data frame all at the same time
-    #TODO: Make this work incrementially and return a final data frame rather than do everything independantly
-
+ 
     working.spdf <- orig.spdf
     if(input$CompCheck){
       working.spdf <- orig.spdf[which(!is.na(orig.spdf$Latitude_Found)),]
@@ -333,10 +347,15 @@ server <- function(input, output, session) {
   output$value <- renderPrint({ input$direction })
   
   #create an output table with directions
- 
   output$directionTable <- renderTable(table(points.orig()@data[,c("bearClass")]),striped = T, colnames = F)
+  
+  #create a table with denominations
   output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F)
   
+  #create a bar chart with denominations
+  # output$denominationPlot <- renderPlot(barplot(table(points.orig()@data[,c("Denomination_for_Tableau")])))
+  
+
   output$textHeader <- renderText(text.filter())  
   output$mymap <- renderLeaflet({
     leaflet() %>%
@@ -353,9 +372,9 @@ server <- function(input, output, session) {
       clearMarkers() %>% 
       clearMarkerClusters() %>%
       clearShapes()%>%
-      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#882255",radius=4, opacity = .8)%>%
-      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#44AA99",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "grey",radius=4, opacity = .8) %>%
+      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#EF5B5B",radius=4, opacity = .8)%>%
+      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#62A87C",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "#367CBB",radius=4, opacity = .8) %>%
       addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .3)  %>%
       addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .3, opacity = .3, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
       zoom <- input$mymap_zoom
@@ -384,19 +403,9 @@ server <- function(input, output, session) {
                       color = DT::styleEqual(rdt2$rowname, rep("white", length(rdt2$rowname))),
                       backgroundColor = DT::styleEqual(rdt2$rowname, rep("black", length(rdt2$rowname))))  
     }
-    })
+    }) #end raw data table
   
   #output dygraph
-  output$dygraph_description <- renderText({
-    "This graph represents the annual number of elopements among the ministers in four major Protestant denominations.
-The Methodists were most represented, with 90 elopers. 
-The Baptists came in second at 56. 
-The Presbyterians were third with 17. 
-Finally, the Congregationalists came in at 11 total elopements. 
-Hovering over any year with the mouse will summarize the number of eloping ministers by denomination for that year. 
-Use the slider at the bottom to zoom in on a specific date range.
-Please note that since exact elopements dates were not always available in the dataset, the month of January was used by default for every year represented in the graph."
-  })
   output$dygraph <- renderDygraph({
     dygraph(majordems)%>% 
       dyAxis("y", label = "Number of Runaway Ministers", valueRange = c(0, 6)) %>% 
@@ -410,7 +419,112 @@ Please note that since exact elopements dates were not always available in the d
                drawPoints = TRUE, color = "#A09435", pointSize = 4, strokeWidth = 2) %>% 
       dyRangeSelector(height = 30)
   })
-}
+  
+  output$dygraph_description <- renderUI({
+    "This graph represents the annual number of elopements among the ministers in four major Protestant denominations.
+    The Methodists were the most represented, with 90 elopers. 
+    The Baptists came in second at 56. 
+    The Presbyterians were third with 17. 
+    Finally, the Congregationalists came in at 11 total elopements. 
+    Hovering over any year with the mouse will summarize the number of eloping ministers by denomination for that year. 
+    Use the slider at the bottom to zoom in on a specific date range.
+    Please note that since exact elopements dates were not always available in the dataset, the month of January was used by default for every year represented in the graph."
+  }) #end dygraph
+  
+  #output settlment size data
+  locationChange <- reactive({
+    #initialize the variables
+    sameSize <- 0
+    upSize <- 0
+    downSize <- 0
+    sameCity <- 0
+    
+    #loop through selected years
+    for(i in seq(input$theYear[1],input$theYear[2],1))
+    {#SAME SIZE
+      #adds up the number of times the source and destination cities are the same, for the given year, i
+      currentSum <- sum(
+        #conditions of sum 
+        ( #test the two city size designations
+          ((df[2]) == (df[3]))
+          & 
+            #test for the chosen year
+            apply(df, 1, function(v) {
+              #if the year is correct and if the origin and destination are not the same
+              (v[1] == i) & (v[4] != v[5])})
+       ) #conditions of sum
+        , na.rm=TRUE) #end sum
+      
+      sameSize = sameSize + currentSum
+      print(sameSize)
+      
+      #ORIGIN SMALLER
+      #adds up the number of times source city is smaller than the destination, for the given year, i
+      currentSum <- sum(
+        #conditions of sum 
+        (#test the two city size designations
+          ((df[2]) < (df[3]))
+          & 
+            #test for the chosen year
+            apply(df, 1, function(v) {
+              #if the year is correct 
+              (v[1] == i)} )
+        ) #conditions of sum
+        , na.rm=TRUE) #end sum
+      upSize =upSize + currentSum
+      print(upSize)
+      
+      #ORIGIN LARGER
+      #adds up the number of times source city is larger than the destination, for the given year, i
+      currentSum <- sum(
+        # conditions of sum 
+        ( # Test the two city size designations
+          ((df[2]) > (df[3]))
+          & 
+            # Test for the chosen year
+            apply(df, 1, function(v) {
+              #if the year is correct 
+              (v[1] == i)})
+        ) #conditions of sum
+        , na.rm=TRUE) #end sum
+      
+      downSize = downSize + currentSum
+      print(downSize)
+      
+      #SAME ORIGIN AND DESTINATION
+      currentSum <- sum(
+        #conditions of sum 
+        (#test the two city size designations
+          ((df[2]) == (df[3]))
+          & 
+            #test for the chosen year
+            apply(df, 1, function(v) {
+              #if the year is correct and if the origin and destination are not the same
+              (v[1] == i) & (v[4] == v[5])} )) # conditions of sum
+        , na.rm=TRUE) #end sum
+      
+      sameCity = sameCity + currentSum} #for statement, looping through the years selected
+    
+    summedList <- c(upSize, sameSize, downSize, sameCity)
+    return(summedList)}) #locationChange reactive function
+  
+  wentSmaller <- 1
+  wentLarger <- 3
+  
+  output$barplot <- renderPlot({
+    barplot(
+      c(locationChange()[1],locationChange()[2],locationChange()[3],locationChange()[4]),
+      ylim=c(0,40),
+      col = "#367CBB",
+      names.arg=c("Larger", "Same Size", "Smaller", "Same City"))})
+  
+  output$text_summary <- renderUI({ 
+    str1 <- paste("Moved to a larger city: ", locationChange()[1])
+    str2 <- paste("Moved to a city of the same size: ", locationChange()[2])
+    str3 <- paste("Moved to a smaller city: ", locationChange()[3])
+    str4 <- paste("Returned to the same city: ", locationChange()[4])
+    HTML(paste(str1, str2, str3, str4, sep = '<br/>'))})
+  }
 
 shinyApp(ui, server)
 #end Shiny app
