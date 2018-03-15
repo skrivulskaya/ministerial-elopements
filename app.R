@@ -1,24 +1,10 @@
 rm(list=ls(all=TRUE)) #clear memory
 
 # new to do - March 9, 2019:
-  # new issue: when "Connections" is unselected on the map, cases where orgin = destination disappear
-  # known issue: output table with directions is not responsive to all of the inputs at the top
-  # make the text at the top of the dygraphs tab not look weird (Suzanna/Mat?)
 
 # to do - March 7, 2018:
-  # city size chart & intergration into the Shiny app tabs (Dan)
-  # fix the New Zealand line (Mat)
-  # integrate the dygraphs thing into another tab (Suzanna)
-      # example: https://faidherbard.shinyapps.io/joburgdygraph/
-      # code for example: https://stackoverflow.com/questions/30176303/using-dygraph-with-shiny
-  # minor - rename tabs so they make sense as to what they are actually doing (Suzanna)
   # on the home page, display the following output tables:
-    # DONE summary table of the direction in which ministers moved (like the old table we had as output but prettier)
-    # summary table of the number of ministers by denomination
-    # DONE summary table of how many ministers are found or return to the same place (vs. those who are never found): Incorperated into new table
     # brainstorm to see if there is any other information that would be helpful to display
-    # DONE add text describing the filter above the tables
-    # add complete cases into the table of where things are found
   # add raw data tab (Suzanna) - done 
   
 library(rgdal)
@@ -235,7 +221,6 @@ server <- function(input, output, session) {
   points.orig <- eventReactive(c(input$range, input$denomination, input$CompCheck, input$direction), {
     #TODO: Should be able to make this pull and generate from one data frame all at the same time
     #TODO: Make this work incrementially and return a final data frame rather than do everything independantly
-    #TODO: Get in the bearClass filter: temp.lines <- temp.lines[which(temp.lines$bearClass %in% input$direction),]
 
     working.spdf <- orig.spdf
     if(input$CompCheck){
@@ -265,8 +250,9 @@ server <- function(input, output, session) {
   }, ignoreNULL = FALSE)#end points.found
   
   points.connections <- eventReactive(c(input$range, input$denomination, input$direction), {
+    #Fix this so it works like the others: with the temp.variable: currently not reactive on dates.
     if (!"Same" %in% input$direction){
-      return(same.spdf [which(same.spdf$bearClass == "Same"),])
+      return(same.spdf [which(same.spdf$bearClass == "Jeff"),])
     }
     if (input$denomination == "All"){
       temp.same <- same.spdf
@@ -331,7 +317,7 @@ server <- function(input, output, session) {
       out.string <- paste(out.string, "just ",input$denomination, sep="")
     }
     if (length(input$direction) == 5){
-    out.string <- paste(out.string, "All directions, ", sep = "")
+    out.string <- paste(out.string, "All directions ", sep = "")
       
     }else{
       dir.string <- paste(unlist(input$direction), collapse =", ")
@@ -369,7 +355,7 @@ server <- function(input, output, session) {
       clearShapes()%>%
       addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#882255",radius=4, opacity = .8)%>%
       addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#44AA99",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "#FFFFC7",radius=4, opacity = .8) %>%
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "grey",radius=4, opacity = .8) %>%
       addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .3)  %>%
       addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .3, opacity = .3, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
       zoom <- input$mymap_zoom
