@@ -204,7 +204,9 @@ ui <- fluidPage(
                                 choices = c("Same","North", "East", "West", "South"),
                                 selected = c("Same", "North", "East", "West", "South"))))),
     column(9,(wellPanel(leafletOutput("mymap")))),
-    column(12, tableOutput("thisTable"))) #end column
+    column(12, textOutput("textHeader")),
+    column(12, tableOutput("thisTable"))#end column
+    ) #end fluidrow
     ),#end first tabPanel
     
     tabPanel("Settlement Size"),
@@ -225,7 +227,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  points.orig <- eventReactive(c(input$range, input$denomination, input$CompCheck), {
+  points.orig <- eventReactive(c(input$range, input$denomination, input$CompCheck, input$direction), {
     #TODO: Should be able to make this pull and generate from one data frame all at the same time
     #TODO: Make this work incrementially and return a final data frame rather than do everything independantly
     #TODO: Get in the bearClass filter: temp.lines <- temp.lines[which(temp.lines$bearClass %in% input$direction),]
@@ -234,6 +236,8 @@ server <- function(input, output, session) {
     if(input$CompCheck){
       working.spdf <- orig.spdf[which(!is.na(orig.spdf$Latitude_Found)),]
     }
+    working.spdf <- working.spdf[which(working.spdf$bearClass %in% input$direction),]
+    
     if (input$denomination == "All"){
       return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2]),])
     }else{
@@ -243,13 +247,15 @@ server <- function(input, output, session) {
     
   }, ignoreNULL = FALSE)#end points.orig
   
-  points.found <- eventReactive(c(input$range, input$denomination), {
+  points.found <- eventReactive(c(input$range, input$denomination, input$direction), {
+    working.found <- found.spdf[which(found.spdf$bearClass %in% input$direction),]
+
     if (input$denomination == "All"){
-      found.spdf[which(found.spdf$Year >= input$range[1] & found.spdf$Year <= input$range[2]),]
+      working.found <- working.found[which(working.found$Year >= input$range[1] & working.found$Year <= input$range[2]),]
     }else{
-      found.spdf[which(found.spdf$Year >= input$range[1] & found.spdf$Year <= input$range[2] & found.spdf$Denomination_for_Tableau == input$denomination),]  
+      working.found <- working.found[which(working.found$Year >= input$range[1] & working.found$Year <= input$range[2] & working.found$Denomination_for_Tableau == input$denomination),]  
     }
-    
+    return(working.found)
     
   }, ignoreNULL = FALSE)#end points.found
   
@@ -307,12 +313,38 @@ server <- function(input, output, session) {
     
   }, ignoreNULL = FALSE)#end lines.connections
   
+  text.filter <- eventReactive(c(input$range, input$denomination, input$CompCheck, input$direction),{
+    out.string <- "Filter = "
+    if (input$range[1] == 1870 & input$range[2]  == 1914){
+      out.string <- paste(out.string, "All years, ", sep = "")
+    } else{
+      out.string <- paste(out.string, input$range[1], " - ", input$range[2], ", ", sep="")
+    } 
+    if (input$denomination == "All"){
+      out.string <- paste(out.string, "All demoninations, ", sep = "")
+    }else{
+      out.string <- paste(out.string, "just ",input$denomination, sep="")
+    }
+    if (length(input$direction) == 5){
+    out.string <- paste(out.string, "All directions, ", sep = "")
+      
+    }else{
+      dir.string <- paste(unlist(input$direction), collapse =", ")
+      out.string <- paste(out.string, "Directions = ",dir.string, sep="")
+    }
+    if (length(input$direction) == 0){
+      out.string <- "Nothing selected"
+    }
+    
+    return(out.string)
+  })
+  
   output$value <- renderPrint({ input$direction })
   
   #create an output table with directions
  
   output$thisTable <- renderTable(table(points.orig()@data[,c("bearClass")]),striped = T, colnames = F)  
-    
+  output$textHeader <- renderText(text.filter())  
   output$mymap <- renderLeaflet({
     leaflet() %>%
       fitBounds(-129,24.2,-65.58,50.54)%>%
