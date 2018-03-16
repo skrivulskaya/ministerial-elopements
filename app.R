@@ -21,6 +21,7 @@ latlong <- "+init=epsg:4326"
 
 #load geocoded data
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
+elop.raw$Longtitude_Found <- ifelse(elop.raw$Longtitude_Found > 100, -179.99, elop.raw$Longtitude_Found)
 
 
 #build settlement size data frame
@@ -105,9 +106,9 @@ row.names(elop.comp) <- NULL
 a <- (gcIntermediate(elop.comp[,c("Longtitude_Origin","Latitude_Origin")], elop.comp[,c("Longtitude_Found","Latitude_Found")],addStartEnd = T, breakAtDateLine = T, n=150, sp = T) )
 complete.lines <- SpatialLinesDataFrame(a,elop.comp)
 #Fixing a dateline issue for that one that ran to new zealand: TODO: Still not perfect
-negs <- as.matrix(coordinates(complete.lines[94,])[[1]][[2]])
-negs[,1] <- (negs[,1])-360
-complete.lines@lines[[94]]@Lines[[2]]@coords[] <- negs
+# negs <- as.matrix(coordinates(complete.lines[94,])[[1]][[2]])
+# negs[,1] <- (negs[,1])-360
+# complete.lines@lines[[94]]@Lines[[2]]@coords[] <- negs
 #end create lines
 
 #make directional arrows for the lines
@@ -157,6 +158,7 @@ a<- data.frame(table(orig.spdf$Location_Origin))
 a$Location_Origin <- as.character(a$Var1)
 a$Var1 <- NULL
 orig.spdf <- merge(orig.spdf,  a, by="Location_Origin",all=T)
+remove(a)
 orig.spdf$Latitude_Origin <-ifelse((orig.spdf$Freq > 1),  orig.spdf$Latitude_Origin - (runif(nrow(orig.spdf))-.5)/40,orig.spdf$Latitude_Origin)
 orig.spdf$Longtitude_Origin <-ifelse((orig.spdf$Freq > 1), orig.spdf$Longtitude_Origin - (runif(nrow(orig.spdf))-.5)/40,orig.spdf$Longtitude_Origin)
 
@@ -164,6 +166,8 @@ coordinates(orig.spdf)=~Longtitude_Origin+Latitude_Origin
 proj4string(orig.spdf) <- CRS(latlong)
 
 found.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
+elop.raw$Longtitude_Found <- ifelse(elop.raw$Longtitude_Found > 100, elop.raw$Longtitude_Found - 360, elop.raw$Longtitude_Found)
+
 coordinates(found.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(found.spdf) <- CRS(latlong)
 
