@@ -328,7 +328,7 @@ server <- function(input, output, session) {
     if (input$denomination == "All"){
       out.string <- paste(out.string, "All demoninations, ", sep = "")
     }else{
-      out.string <- paste(out.string, "just ",input$denomination, sep="")
+      out.string <- paste(out.string, "just ",input$denomination, ", ", sep="")
     }
     if (length(input$direction) == 5){
     out.string <- paste(out.string, "All directions ", sep = "")
@@ -347,7 +347,15 @@ server <- function(input, output, session) {
   output$value <- renderPrint({ input$direction })
   
   #create an output table with directions
-  output$directionTable <- renderTable(table(points.orig()@data[,c("bearClass")]),striped = T, colnames = F)
+  # 
+  
+  output$directionTable <- renderTable({
+    direction.table.maker <- table(points.orig()@data[,c("bearClass")])
+    direction.table.maker <- c(direction.table.maker[1:5],"All Found" = sum(direction.table.maker[1:5]),direction.table.maker["Never"]) 
+    direction.table.maker <- t(direction.table.maker)
+    colnames(direction.table.maker)<- c("North", "South",  "East",  "West",  "Same", "All Found", "Never Found")
+    direction.table.maker
+  },striped = T, colnames = T, align = "c")
   
   #create a table with denominations
   output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F)
