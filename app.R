@@ -1,21 +1,11 @@
 rm(list=ls(all=TRUE)) #clear memory
-  
-library(rgdal)
-library(leaflet)
-library(shiny)
-library (geosphere)
-library(dygraphs)
-library(dplyr)
-library(xts)
-library(plotly)
-library(DT)
-library(crosstalk)
-library(dygraphs)
-library(datasets)
+
+packages<- c("rgdal", "leaflet", "shiny", "geosphere", "dygraphs", "dplyr", "ggplot2",
+             "xts", "plotly", "DT", "crosstalk", "datasets", "shinyWidgets", "shinydashboard")
+lapply(packages, require, character.only=T) #load required packages; you may need install any that do not load first
 
 # setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
-# setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 
 latlong <- "+init=epsg:4326"
 
@@ -120,7 +110,7 @@ a <- do.call(rbind.data.frame, a)
 markers.df$midlong <- a$lon
 markers.df$midlat <- a$lat
 # markers.df$bearing <- bearingRhumb(markers.df[,c("Longtitude_Origin","Latitude_Origin")],markers.df[,c("Longtitude_Found","Latitude_Found")])
-#Now can calculate the direction of travel
+#calculate the direction of travel
 arrow.scale <- 4
 arrow.angle <- 30
 
@@ -190,25 +180,35 @@ ui <- fluidPage(
   navbarPage("Runaway Reverends",
              tabPanel("Home",
     fluidRow(
-    column(3,offset = 0, style='padding-right:10px;',
+    column(3,
            (wellPanel(
              sliderInput("range", "Date Range:",
                          min = 1870, max = 1914,
                          value = c(1870,1914), sep = ""),
              selectizeInput("denomination", "Denomination:",
                             choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))),
-             checkboxInput("CompCheck","Only Found", value = FALSE, width = NULL),
+             materialSwitch(inputId = "CompCheck", value = FALSE, right = TRUE, status = "success", 
+                            label = "Limit to ministers who were found, arrested, or returned home"),
              checkboxGroupInput("direction", label = ("Direction:"), 
                                 choices = c("Same","North", "East", "West", "South"),
                                 selected = c("Same", "North", "East", "West", "South"))))),
-    column(9,(wellPanel(leafletOutput("mymap")))),
-    column(12, verbatimTextOutput("textHeader")),
-    column(12, br()),
-    column(12, tableOutput("directionTable")),
-    column(12, hr()),
-    column(12, h4("Denominations: ")),
-    column(12, tableOutput("denominationTable"))#end column
-    ) #end fluidrow
+    column(9,(wellPanel(leafletOutput("mymap"))))),
+    #end first ui row with selection panel and leaflet map
+    hr(),
+    fluidRow(
+    column(2, h5("Current Filter: ")),
+    column(10, verbatimTextOutput("textHeader"),
+      tags$head(tags$style("#textHeader{color:#367CBB; font-size:12px; font-style:regular;
+      overflow-y:scroll; max-height: 100px; background: ghostwhite;}"))),
+    
+    column(2, h5("Direction of Movement: ")),
+    # column(6, tableOutput("directionTable")),
+    # column(10, plotOutput("directionPlot")),
+    column(10, plotlyOutput("directionPlotly")),
+    
+    column(2, h5("Number of Ministers by Denomination: ")),
+    column(10, tableOutput("denominationTable"))#end column
+     ) #end fluidrow
     ),#end first tabPanel
     
     tabPanel("Settlement Size",
@@ -323,7 +323,7 @@ server <- function(input, output, session) {
   }, ignoreNULL = FALSE)#end lines.connections
   
   text.filter <- eventReactive(c(input$range, input$denomination, input$CompCheck, input$direction),{
-    out.string <- "Filter = "
+    out.string <- ""
     if (input$range[1] == 1870 & input$range[2]  == 1914){
       out.string <- paste(out.string, "All years, ", sep = "")
     } else{
@@ -351,18 +351,34 @@ server <- function(input, output, session) {
   output$value <- renderPrint({ input$direction })
   
   #create an output table with directions
-  # 
+  # output$directionTable <- renderTable({
+  #   direction.table.maker <- table(points.orig()@data[,c("bearClass")])
+  #   direction.table.maker <- c(direction.table.maker[1:5],"All Found" = sum(direction.table.maker[1:5]),direction.table.maker["Never"])
+  #   direction.table.maker <- t(direction.table.maker)
+  #   colnames(direction.table.maker)<- c("North", "South",  "East",  "West",  "Same City", "All Found", "Never Found")
+  #   direction.table.maker
+  # }, colnames = T, align = "l", hover = T, spascing = 'xs')
   
-  output$directionTable <- renderTable({
-    direction.table.maker <- table(points.orig()@data[,c("bearClass")])
-    direction.table.maker <- c(direction.table.maker[1:5],"All Found" = sum(direction.table.maker[1:5]),direction.table.maker["Never"]) 
-    direction.table.maker <- t(direction.table.maker)
-    colnames(direction.table.maker)<- c("North", "South",  "East",  "West",  "Same", "All Found", "Never Found")
-    direction.table.maker
-  },striped = T, colnames = T, align = "c")
+  #create a bar chart with directions
+  # output$directionPlot <- renderPlot({
+  #   direction.plot.maker <- table(points.orig()@data[,c("bearClass")])
+  #   direction.plot.maker <- c(direction.plot.maker[1:5],"All Found" = sum(direction.plot.maker[1:5]),direction.plot.maker["Never"]) 
+  #   direction.plot.maker <- t(direction.plot.maker)
+  #   barplot(direction.plot.maker)
+  #           })
+  
+  output$directionPlotly <- renderPlotly({
+      direction.plot.maker <- table(points.orig()@data[,c("bearClass")])
+      direction.plot.maker <- c(direction.plot.maker[1:5],"All Found" = sum(direction.plot.maker[1:5]),direction.plot.maker["Never"])
+      direction.plot.maker <- t(direction.plot.maker)
+    plot_ly(table(points.orig()@data[,c("bearClass")]), 
+            x = "North", "South",  "East",  "West",  "Same City", "All Found", "Never Found", 
+            y = ~wt,
+            type = "bar")
+  })
   
   #create a table with denominations
-  output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F)
+  output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F, hover = TRUE, spascing = 'xs')
   
   #create a bar chart with denominations
   # output$denominationPlot <- renderPlot(barplot(table(points.orig()@data[,c("Denomination_for_Tableau")])))
@@ -385,7 +401,7 @@ server <- function(input, output, session) {
       clearMarkerClusters() %>%
       clearShapes()%>%
       addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#EF5B5B",radius=4, opacity = .8)%>%
-      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#62A87C",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#5BB85B",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
       addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "#367CBB",radius=4, opacity = .8) %>%
       addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .3)  %>%
       addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .3, opacity = .3, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
@@ -542,4 +558,4 @@ shinyApp(ui, server)
 #end Shiny app
 
 # library(rsconnect)
-#deployApp()
+# deployApp()
