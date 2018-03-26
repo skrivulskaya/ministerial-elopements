@@ -1,9 +1,22 @@
 rm(list=ls(all=TRUE)) #clear memory
 
-packages<- c("rgdal", "leaflet", "shiny", "geosphere", "dygraphs", "dplyr", "ggplot2",
-             "xts", "plotly", "DT", "crosstalk", "datasets", "shinyWidgets", "shinydashboard")
-lapply(packages, require, character.only=T) #load required packages; you may need install any that do not load first
-
+# packages<- c("rgdal", "leaflet", "shiny", "geosphere", "dygraphs", "dplyr", "ggplot2",
+             # "xts", "plotly", "DT", "crosstalk", "datasets", "shinyWidgets", "shinydashboard")
+# lapply(packages, require, character.only=T) #load required packages; you may need install any that do not load first
+library(rgdal)
+library(leaflet)
+library(shiny)
+library(geosphere)
+library(dygraphs)
+library(dplyr)
+library(ggplot2)
+library(xts)
+library(plotly)
+library(DT)
+library(crosstalk)
+library(datasets)
+library(shinydashboard)
+library(shinyWidgets)
 # setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 
@@ -371,7 +384,7 @@ server <- function(input, output, session) {
       direction.plot.maker <- table(points.orig()@data[,c("bearClass")])
       direction.plot.maker <- c(direction.plot.maker[1:5],"All Found" = sum(direction.plot.maker[1:5]),direction.plot.maker["Never"])
       direction.plot.maker <- t(direction.plot.maker)
-    plot_ly(table(points.orig()@data[,c("bearClass")]), 
+      plot_ly(table(data.frame(points.orig()@data[,c("bearClass")])), 
             x = "North", "South",  "East",  "West",  "Same City", "All Found", "Never Found", 
             y = ~wt,
             type = "bar")
@@ -484,7 +497,7 @@ server <- function(input, output, session) {
         , na.rm=TRUE) #end sum
       
       sameSize = sameSize + currentSum
-      print(sameSize)
+      # print(sameSize)
       
       #ORIGIN SMALLER
       #adds up the number of times source city is smaller than the destination, for the given year, i
@@ -557,5 +570,5 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 #end Shiny app
 
-library(rsconnect)
-deployApp()
+# library(rsconnect)
+# deployApp()
