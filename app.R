@@ -557,5 +557,5 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 #end Shiny app
 
-# library(rsconnect)
-# deployApp()
+library(rsconnect)
+deployApp()
