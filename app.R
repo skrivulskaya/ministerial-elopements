@@ -18,6 +18,7 @@ library(datasets)
 library(shinydashboard)
 library(shinyWidgets)
 # setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
+# setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 
 latlong <- "+init=epsg:4326"
@@ -99,6 +100,7 @@ elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "Wes
 elop.raw[which(elop.raw$Location_Origin == elop.raw$Location_Found),]$bearClass <- 'Same'
 elop.raw[is.na(elop.raw$Location_Found),"bearClass"] <- 'Never'
 elop.raw$bearClass <- factor(elop.raw$bearClass, levels=c("North","South", "East", "West","Same","Never"))
+bearClass.rounder <- 10*ceiling(max(table(elop.raw$bearClass))/10) # This keeps the plotly chart standardized
 # table(elop.raw$bearClass)
 # elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
 #end directional information
@@ -182,8 +184,8 @@ proj4string(same.spdf) <- CRS(latlong)
 
 #table testing
 #change the order by factorizing
-table(elop.raw$bearClass)
-table(elop.raw$Denomination_for_Tableau)
+# table(elop.raw$bearClass)
+# table(elop.raw$Denomination_for_Tableau)
 
 
 
@@ -381,13 +383,22 @@ server <- function(input, output, session) {
   #           })
   
   output$directionPlotly <- renderPlotly({
-      direction.plot.maker <- table(points.orig()@data[,c("bearClass")])
-      direction.plot.maker <- c(direction.plot.maker[1:5],"All Found" = sum(direction.plot.maker[1:5]),direction.plot.maker["Never"])
-      direction.plot.maker <- t(direction.plot.maker)
-      plot_ly(table(data.frame(points.orig()@data[,c("bearClass")])), 
-            x = "North", "South",  "East",  "West",  "Same City", "All Found", "Never Found", 
-            y = ~wt,
-            type = "bar")
+      # direction.plot.maker <- table(points.orig()@data[,c("bearClass")])
+      # direction.plot.maker <- c(direction.plot.maker[1:5],"All Found" = sum(direction.plot.maker[1:5]),direction.plot.maker["Never"])
+      # direction.plot.maker <- t(direction.plot.maker)
+      # plot_ly((points.orig()@data[,c("bearClass")]),
+      #       x = "North", "South",  "East",  "West",  "Same City", "All Found", "Never Found", 
+      #       y = ~wt,
+      #       type = "bar")
+    p<- plot_ly(data.frame(table(points.orig()@data[,c("bearClass")])),
+            # x = "North", "South",  "East",  "West",  "Same City", "All Found", "Never Found", 
+            x = ~Var1,
+            y = ~Freq,
+            type = "bar") %>% 
+      layout(xaxis= list(title = ""), yaxis = list(title = "Frequency", range = c(0, bearClass.rounder))) # range keeps the plotly chart standardized
+    p$elementId <- NULL #This syntax removes problems with warnings.
+    p
+    
   })
   
   #create a table with denominations
