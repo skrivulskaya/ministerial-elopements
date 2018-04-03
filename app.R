@@ -1,8 +1,6 @@
 rm(list=ls(all=TRUE)) #clear memory
 
-# packages<- c("rgdal", "leaflet", "shiny", "geosphere", "dygraphs", "dplyr", "ggplot2",
-             # "xts", "plotly", "DT", "crosstalk", "datasets", "shinyWidgets", "shinydashboard")
-# lapply(packages, require, character.only=T) #load required packages; you may need install any that do not load first
+#load required packages
 library(rgdal)
 library(leaflet)
 library(shiny)
@@ -17,7 +15,9 @@ library(crosstalk)
 library(datasets)
 library(shinydashboard)
 library(shinyWidgets)
+
 # setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
+# setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 
 latlong <- "+init=epsg:4326"
@@ -99,6 +99,7 @@ elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "Wes
 elop.raw[which(elop.raw$Location_Origin == elop.raw$Location_Found),]$bearClass <- 'Same'
 elop.raw[is.na(elop.raw$Location_Found),"bearClass"] <- 'Never'
 elop.raw$bearClass <- factor(elop.raw$bearClass, levels=c("North","South", "East", "West","Same","Never"))
+bearClass.rounder <- 10*ceiling(max(table(elop.raw$bearClass))/10) # This keeps the plotly chart standardized
 # table(elop.raw$bearClass)
 # elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
 #end directional information
@@ -180,13 +181,6 @@ proj4string(same.spdf) <- CRS(latlong)
 #end mapping section
 
 
-#table testing
-#change the order by factorizing
-table(elop.raw$bearClass)
-table(elop.raw$Denomination_for_Tableau)
-
-
-
 #build Shiny interface
 ui <- fluidPage(
   title = "Runaway Reverends",
@@ -199,8 +193,11 @@ ui <- fluidPage(
                          min = 1870, max = 1914,
                          value = c(1870,1914), sep = ""),
              selectizeInput("denomination", "Denomination:",
-                            choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))),
-             materialSwitch(inputId = "CompCheck", value = FALSE, right = TRUE, status = "success", 
+                            choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))
+                            # ,
+                            # multiple = TRUE
+                            ),
+             materialSwitch(inputId = "CompCheck", value = FALSE, right = TRUE, status = "primary", 
                             label = "Limit to ministers who were found, arrested, or returned home"),
              checkboxGroupInput("direction", label = ("Direction:"), 
                                 choices = c("Same","North", "East", "West", "South"),
@@ -213,16 +210,13 @@ ui <- fluidPage(
     column(10, verbatimTextOutput("textHeader"),
       tags$head(tags$style("#textHeader{color:#367CBB; font-size:12px; font-style:regular;
       overflow-y:scroll; max-height: 100px; background: ghostwhite;}"))),
-    
     column(2, h5("Direction of Movement: ")),
-    # column(6, tableOutput("directionTable")),
-    # column(10, plotOutput("directionPlot")),
     column(10, plotlyOutput("directionPlotly")),
-    
     column(2, h5("Number of Ministers by Denomination: ")),
-    column(10, tableOutput("denominationTable"))#end column
+    column(10, plotlyOutput("denominationPieChart"))
+    # column(10, tableOutput("denominationTable"))#end column
      ) #end fluidrow
-    ),#end first tabPanel
+    ), #end first tabPanel
     
     tabPanel("Settlement Size",
              sidebarLayout(
@@ -264,7 +258,6 @@ server <- function(input, output, session) {
     }else{
       return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2] & working.spdf$Denomination_for_Tableau == input$denomination),])  
     }
-    
     
   }, ignoreNULL = FALSE)#end points.orig
   
@@ -314,13 +307,11 @@ server <- function(input, output, session) {
   
   arrowheads.connections <- eventReactive(c(input$range, input$denomination, input$direction,input$mymap_zoom), {
     if(is.null((input$mymap_zoom))){
-      # print("build as is")
       poly.arrows <- build.arrowheads(arrow.scale = 4)
     }else{
       poly.arrows <- build.arrowheads(arrow.scale = input$mymap_zoom)
     }
     
-    # print(zoom)
     if (input$denomination == "All"){
       temp.arrows <- poly.arrows
     }else{
@@ -330,7 +321,7 @@ server <- function(input, output, session) {
     temp.arrows <- temp.arrows[which(temp.arrows$Year >= input$range[1] & temp.arrows$Year <= input$range[2]),]
     #filter bearing
     temp.arrows <- temp.arrows[which(temp.arrows$bearClass %in% input$direction),]
-    # return(complete.lines[
+    #return(complete.lines[
     return(temp.arrows)
     
   }, ignoreNULL = FALSE)#end lines.connections
@@ -372,26 +363,50 @@ server <- function(input, output, session) {
   #   direction.table.maker
   # }, colnames = T, align = "l", hover = T, spascing = 'xs')
   
-  #create a bar chart with directions
-  # output$directionPlot <- renderPlot({
-  #   direction.plot.maker <- table(points.orig()@data[,c("bearClass")])
-  #   direction.plot.maker <- c(direction.plot.maker[1:5],"All Found" = sum(direction.plot.maker[1:5]),direction.plot.maker["Never"]) 
-  #   direction.plot.maker <- t(direction.plot.maker)
-  #   barplot(direction.plot.maker)
-  #           })
-  
   output$directionPlotly <- renderPlotly({
-      direction.plot.maker <- table(points.orig()@data[,c("bearClass")])
-      direction.plot.maker <- c(direction.plot.maker[1:5],"All Found" = sum(direction.plot.maker[1:5]),direction.plot.maker["Never"])
-      direction.plot.maker <- t(direction.plot.maker)
-      plot_ly(table(data.frame(points.orig()@data[,c("bearClass")])), 
-            x = "North", "South",  "East",  "West",  "Same City", "All Found", "Never Found", 
-            y = ~wt,
-            type = "bar")
+    new.table <- data.frame(table(points.orig()@data[,c("bearClass")]))
+    levels(new.table$Var1) <- c("North","South","East","West", "Same City","Never Found")
+    p<- plot_ly(new.table,
+            x = ~Var1,
+            y = ~Freq,
+            type = "bar") %>% 
+      layout(height = 300, xaxis= list(title = ""), 
+             yaxis = list(title = "Frequency", 
+             range = c(0, bearClass.rounder))) #range keeps the plotly chart standardized
+    p$elementId <- NULL #this syntax removes problems with warnings
+    p 
+    
+  })
+  
+  
+  #create a piechart with denominations
+  output$denominationPieChart <- renderPlotly({
+   ax <- list(
+     title = "",
+    zeroline = FALSE,
+    showline = FALSE,
+    showticklabels = FALSE,
+    showgrid = FALSE)
+    d <- plot_ly(data.frame(table(points.orig()@data[,c("Denomination_for_Tableau")])),
+                 labels = ~Var1,
+                 values = ~Freq,
+                 type = 'pie',
+                 textposition = 'inside',
+                 textinfo = 'value+label+percent',
+                 insidetextfont = list(color = '#FFFFFF'),
+                 marker = list(colors = colors,
+                               line = list(color = '#FFFFFF', width = 1)),
+                 showlegend = FALSE) %>%
+      layout(xaxis= ax, 
+             yaxis = ax,
+             height = 550)
+      d$elementId <- NULL #this syntax removes problems with warnings
+      d 
+    
   })
   
   #create a table with denominations
-  output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F, hover = TRUE, spascing = 'xs')
+  # output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F, hover = TRUE, spascing = 'xs')
   
   #create a bar chart with denominations
   # output$denominationPlot <- renderPlot(barplot(table(points.orig()@data[,c("Denomination_for_Tableau")])))
@@ -423,10 +438,9 @@ server <- function(input, output, session) {
   })
   
   #output raw data table
-  #outputting table with raw data
   d <- SharedData$new(rdt, ~rowname)
   
-  # highlight selected rows in the table
+  #highlight selected rows in the table
   output$x1 <- DT::renderDataTable(
     {rdt2 <- rdt[d$selection(),]
     dt <- DT::datatable(rdt, rownames = FALSE, 
