@@ -193,10 +193,13 @@ ui <- fluidPage(
                          min = 1870, max = 1914,
                          value = c(1870,1914), sep = ""),
              selectizeInput("denomination", "Denomination:",
-                            choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau)))
-                            # ,
-                            # multiple = TRUE
+                            # choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau))),
+                            choices = c(sort(unique(elop.raw$Denomination_for_Tableau))),
+                            multiple = TRUE,
+                            options = list(plugins= list('remove_button'), placeholder = 'All Denominations')
                             ),
+             # actionButton("reset_input", "Reset Denomination"),
+             # hr(),
              materialSwitch(inputId = "CompCheck", value = FALSE, right = TRUE, status = "primary", 
                             label = "Limit to ministers who were found, arrested, or returned home"),
              checkboxGroupInput("direction", label = ("Direction:"), 
@@ -253,10 +256,10 @@ server <- function(input, output, session) {
     }
     working.spdf <- working.spdf[which(working.spdf$bearClass %in% c(input$direction, "Never")),]
     
-    if (input$denomination == "All"){
+    if (is.null(input$denomination)){
       return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2]),])
     }else{
-      return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2] & working.spdf$Denomination_for_Tableau == input$denomination),])  
+      return(working.spdf[which(working.spdf$Year >= input$range[1] & working.spdf$Year <= input$range[2] & working.spdf$Denomination_for_Tableau %in% input$denomination),])  
     }
     
   }, ignoreNULL = FALSE)#end points.orig
@@ -264,10 +267,10 @@ server <- function(input, output, session) {
   points.found <- eventReactive(c(input$range, input$denomination, input$direction), {
     working.found <- found.spdf[which(found.spdf$bearClass %in% input$direction),]
 
-    if (input$denomination == "All"){
+    if (is.null(input$denomination)){
       working.found <- working.found[which(working.found$Year >= input$range[1] & working.found$Year <= input$range[2]),]
     }else{
-      working.found <- working.found[which(working.found$Year >= input$range[1] & working.found$Year <= input$range[2] & working.found$Denomination_for_Tableau == input$denomination),]  
+      working.found <- working.found[which(working.found$Year >= input$range[1] & working.found$Year <= input$range[2] & working.found$Denomination_for_Tableau %in% input$denomination),]  
     }
     return(working.found)
     
@@ -278,10 +281,10 @@ server <- function(input, output, session) {
     if (!"Same" %in% input$direction){
       return(same.spdf [which(same.spdf$bearClass == "Jeff"),])
     }
-    if (input$denomination == "All"){
+    if (is.null(input$denomination)){
       temp.same <- same.spdf
     }else{
-      temp.same <- same.spdf[which(same.spdf$Denomination_for_Tableau == input$denomination),]
+      temp.same <- same.spdf[which(same.spdf$Denomination_for_Tableau %in% input$denomination),]
     }
     #filter years
     temp.same <- temp.same[which(temp.same$Year >= input$range[1] & temp.same$Year <= input$range[2]),]
@@ -291,10 +294,10 @@ server <- function(input, output, session) {
   }, ignoreNULL = FALSE)#end points.found
   
   lines.connections <- eventReactive(c(input$range, input$denomination, input$direction), {
-    if (input$denomination == "All"){
+    if (is.null(input$denomination)){
       temp.lines <- complete.lines
     }else{
-      temp.lines <- complete.lines[which(complete.lines$Denomination_for_Tableau == input$denomination),]
+      temp.lines <- complete.lines[which(complete.lines$Denomination_for_Tableau %in% input$denomination),]
           }
     #filter years
     temp.lines <- temp.lines[which(temp.lines$Year >= input$range[1] & temp.lines$Year <= input$range[2]),]
@@ -312,10 +315,10 @@ server <- function(input, output, session) {
       poly.arrows <- build.arrowheads(arrow.scale = input$mymap_zoom)
     }
     
-    if (input$denomination == "All"){
+    if (is.null(input$denomination)){
       temp.arrows <- poly.arrows
     }else{
-      temp.arrows <- poly.arrows[which(poly.arrows$Denomination_for_Tableau == input$denomination),]
+      temp.arrows <- poly.arrows[which(poly.arrows$Denomination_for_Tableau %in% input$denomination),]
     }
     #filter years
     temp.arrows <- temp.arrows[which(temp.arrows$Year >= input$range[1] & temp.arrows$Year <= input$range[2]),]
@@ -327,16 +330,17 @@ server <- function(input, output, session) {
   }, ignoreNULL = FALSE)#end lines.connections
   
   text.filter <- eventReactive(c(input$range, input$denomination, input$CompCheck, input$direction),{
+    print(input$denomination)
     out.string <- ""
     if (input$range[1] == 1870 & input$range[2]  == 1914){
       out.string <- paste(out.string, "All years, ", sep = "")
     } else{
       out.string <- paste(out.string, input$range[1], " - ", input$range[2], ", ", sep="")
     } 
-    if (input$denomination == "All"){
+    if (is.null(input$denomination)){
       out.string <- paste(out.string, "All demoninations, ", sep = "")
     }else{
-      out.string <- paste(out.string, "just ",input$denomination, ", ", sep="")
+      out.string <- paste(out.string, "Demoninations =  ",paste(input$denomination,collapse = ", "), ", ", sep="")
     }
     if (length(input$direction) == 5){
     out.string <- paste(out.string, "All directions ", sep = "")
@@ -369,8 +373,9 @@ server <- function(input, output, session) {
     p<- plot_ly(new.table,
             x = ~Var1,
             y = ~Freq,
-            type = "bar") %>% 
-      layout(height = 300, xaxis= list(title = ""), 
+            type = "bar",
+            height = 300) %>% 
+      layout(xaxis= list(title = ""), 
              yaxis = list(title = "Frequency", 
              range = c(0, bearClass.rounder))) #range keeps the plotly chart standardized
     p$elementId <- NULL #this syntax removes problems with warnings
@@ -391,6 +396,7 @@ server <- function(input, output, session) {
                  labels = ~Var1,
                  values = ~Freq,
                  type = 'pie',
+                 height = 550,
                  textposition = 'inside',
                  textinfo = 'value+label+percent',
                  insidetextfont = list(color = '#FFFFFF'),
@@ -398,8 +404,7 @@ server <- function(input, output, session) {
                                line = list(color = '#FFFFFF', width = 1)),
                  showlegend = FALSE) %>%
       layout(xaxis= ax, 
-             yaxis = ax,
-             height = 550)
+             yaxis = ax)
       d$elementId <- NULL #this syntax removes problems with warnings
       d 
     
