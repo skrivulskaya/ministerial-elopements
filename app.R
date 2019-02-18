@@ -330,7 +330,7 @@ server <- function(input, output, session) {
   
   output$home_about <- renderUI({
     "The Runaway Reverends project is an interactive digital map of American Protestant pastors who eloped with women who were not their wives between the years 1870 and 1914.
-    Red dots represent places of origin. Green dots are destinations. Blue dots indicate ministers who returned home.
+    Red dots represent places of origin. Blue dots are destinations. Lime green dots indicate ministers who returned home (or were arrested in the city of origin).
     Clicking on each dot will provide additional information about the minister.
     You may also filter by year, denomination, and direction of movement in the left-hand column. Statistical data about the cohort in the lower half of the site will refresh each time you apply a new filter.
     The project was created by Suzanna Krivulskaya in collaboration with Matthew Sisk and Daniel Johnson of the Navari Family Center for Digital Scholarship at the University of Notre Dame."
@@ -413,9 +413,9 @@ server <- function(input, output, session) {
       clearMarkers() %>% 
       clearMarkerClusters() %>%
       clearShapes()%>%
-      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#EF5B5B",radius=4, opacity = .8)%>%
-      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "#5BB85B",radius=4, opacity = .8)%>% #,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "#367CBB",radius=4, opacity = .8) %>%
+      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#FF2000",radius=4, opacity = .8)%>%
+      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "blue",radius=4, opacity = .6)%>% #,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "lime",radius=4, opacity = .8) %>%
       addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .3)  %>%
       addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .3, opacity = .3, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
       zoom <- input$mymap_zoom
