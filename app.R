@@ -16,7 +16,7 @@ library(datasets)
 library(shinydashboard)
 library(shinyWidgets)
 
-# setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data/ministerial-elopements")
+# setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data and Research/ministerial-elopements")
 # setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
 # setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 
@@ -25,7 +25,6 @@ latlong <- "+init=epsg:4326"
 #load geocoded data
 elop.raw <- read.csv("ministerial_elopements_geocoded.csv",stringsAsFactors = F)
 elop.raw$Longtitude_Found <- ifelse(elop.raw$Longtitude_Found > 100, -179.99, elop.raw$Longtitude_Found)
-
 
 #build settlement size data frame
 mData <- read.csv("ministerial_elopements_geocoded.csv", header=TRUE)
@@ -39,35 +38,23 @@ yearLeft <- mData$Year
 
 #construct our data frame, making sure the string values are not factors
 df <- data.frame(yearLeft, origClass, destClass, origPlace, destPlace, stringsAsFactors = FALSE)
-#end settlement size data frame
-
 
 #build the raw data table
 raw.data.tab <- read.csv("raw_data_tab.csv",stringsAsFactors = F)
 rdt <- raw.data.tab %>%
   tibble::rownames_to_column()
-#end raw data table
-
 
 #build the dygraph tables
 dby.raw <- as.data.frame.matrix(table(elop.raw$Year, elop.raw$Denomination_for_Tableau))
-# write.csv(denombyyear, file = "denombyyear.csv")
-# dby.raw <- read.csv("denombyyear.csv",stringsAsFactors = F)
 
 #build xts objects for dygraph tab
-Methodist <- as.xts(ts(start = c(1870), end=c(1914),
-                       data = c(dby.raw$Methodist)))
-Baptist <- as.xts(ts(start = c(1870), end=c(1914),
-                     data = c(dby.raw$Baptist)))
-Presbyterian <- as.xts(ts(start = c(1870), end=c(1914),
-                          data = c(dby.raw$Presbyterian)))
-Congregational <- as.xts(ts(start = c(1870), end=c(1914),
-                            data = c(dby.raw$Congregational)))
+Methodist <- as.xts(ts(start = c(1870), end=c(1914), data = c(dby.raw$Methodist)))
+Baptist <- as.xts(ts(start = c(1870), end=c(1914), data = c(dby.raw$Baptist)))
+Presbyterian <- as.xts(ts(start = c(1870), end=c(1914), data = c(dby.raw$Presbyterian)))
+Congregational <- as.xts(ts(start = c(1870), end=c(1914), data = c(dby.raw$Congregational)))
 
 #combine xts objects for dygraph
 majordems <- cbind(Methodist, Baptist, Presbyterian, Congregational)
-#end dygraph tables
-
 
 #generate new locations for duplicate places 
 elop.raw$dup_origin <- elop.raw$Location_Origin %in% elop.raw[duplicated(elop.raw$Location_Origin),]$Location_Origin
@@ -76,7 +63,6 @@ elop.raw$Latitude_Origin <- ifelse(elop.raw$dup_origin, elop.raw$Latitude_Origin
 elop.raw$Longtitude_Origin <- ifelse(elop.raw$dup_origin, elop.raw$Longtitude_Origin - (runif(nrow(elop.raw))-.5)/20,elop.raw$Longtitude_Origin)
 elop.raw$Latitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Latitude_Found - (runif(nrow(elop.raw))-.5)/20,elop.raw$Latitude_Found)
 elop.raw$Longtitude_Found <- ifelse(elop.raw$dup_found, elop.raw$Longtitude_Found - (runif(nrow(elop.raw))-.5)/20,elop.raw$Longtitude_Found)
-#end locations for duplicate places
 
 #generate html popup
 elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
@@ -87,8 +73,7 @@ elop.raw$popupw <- paste(sep = "",  "<b>",elop.raw$Full_Name,"</b><br/>",
                          "Accusation: ",elop.raw$Accusations,"<br/>",
                          "Age of Female: ",elop.raw$Female_Age, "<br/>",
                          "Found: ",elop.raw$Location_Found,"<br/>",
-                         "Year Found: ",elop.raw$Year_Found,"<br/>"
-) #end html popup
+                         "Year Found: ",elop.raw$Year_Found,"<br/>")
 
 #generate directional information
 elop.raw$bearing[(!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)] <- bearingRhumb(elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Origin","Latitude_Origin")],elop.raw[((!is.na(elop.raw$Latitude_Found))& (elop.raw$Location_Origin != elop.raw$Location_Found)),c("Longtitude_Found","Latitude_Found")])
@@ -99,10 +84,7 @@ elop.raw$bearClass[(elop.raw$bearing < 315) & (elop.raw$bearing >= 225)] <- "Wes
 elop.raw[which(elop.raw$Location_Origin == elop.raw$Location_Found),]$bearClass <- 'Same'
 elop.raw[is.na(elop.raw$Location_Found),"bearClass"] <- 'Never'
 elop.raw$bearClass <- factor(elop.raw$bearClass, levels=c("North","South", "East", "West","Same","Never"))
-bearClass.rounder <- 10*ceiling(max(table(elop.raw$bearClass))/10) # This keeps the plotly chart standardized
-# table(elop.raw$bearClass)
-# elop.raw$popupw <- paste (sep = "", elop.raw$popupw,"bearing: ",elop.raw$bearClass,"<br/>")
-#end directional information
+bearClass.rounder <- 10*ceiling(max(table(elop.raw$bearClass))/10) #this keeps the plotly chart standardized
 
 #create lines
 elop.comp <- elop.raw[which(!is.na(elop.raw$Latitude_Found)),]
@@ -113,7 +95,6 @@ complete.lines <- SpatialLinesDataFrame(a,elop.comp)
 # negs <- as.matrix(coordinates(complete.lines[94,])[[1]][[2]])
 # negs[,1] <- (negs[,1])-360
 # complete.lines@lines[[94]]@Lines[[2]]@coords[] <- negs
-#end create lines
 
 #make directional arrows for the lines
 markers.df <- elop.comp[which(elop.comp$Location_Origin != elop.comp$Location_Found),]
@@ -147,16 +128,12 @@ build.arrowheads <-function(arrow.scale = 4, df = markers.df){
   }
   arrowheads <- SpatialPolygonsDataFrame(SpatialPolygons(polys),df)
   proj4string(arrowheads) <- CRS(latlong)
-  # print(arrowheads)
   return(arrowheads)
 }
 
 poly.arrrows <- build.arrowheads()
-#end directional arrows
 
-#mapping section
-#convert to point data frames for mapping
-#randomize identical points
+#mapping section: convert to point data frames for mapping, randomize identical points
 orig.spdf <- elop.raw[which(!is.na(elop.raw$Latitude_Origin)),]
 a<- data.frame(table(orig.spdf$Location_Origin))
 a$Location_Origin <- as.character(a$Var1)
@@ -178,7 +155,6 @@ proj4string(found.spdf) <- CRS(latlong)
 same.spdf <- elop.comp[which(elop.comp$Location_Origin == elop.comp$Location_Found),]
 coordinates(same.spdf)=~Longtitude_Found+Latitude_Found
 proj4string(same.spdf) <- CRS(latlong)
-#end mapping section
 
 
 #build Shiny interface
@@ -192,14 +168,13 @@ ui <- fluidPage(
              sliderInput("range", "Date Range:",
                          min = 1870, max = 1914,
                          value = c(1870,1914), sep = ""),
-             selectizeInput("denomination", "Denomination:",
-                            # choices = c("All", sort(unique(elop.raw$Denomination_for_Tableau))),
+             selectizeInput("denomination", "Denomination(s):",
                             choices = c(sort(unique(elop.raw$Denomination_for_Tableau))),
                             multiple = TRUE,
                             options = list(plugins= list('remove_button'), placeholder = 'All Denominations')
                             ),
-             # actionButton("reset_input", "Reset Denomination"),
-             # hr(),
+             # actionButton("reset_input", "Reset Denomination(s)"),
+             hr(),
              materialSwitch(inputId = "CompCheck", value = FALSE, right = TRUE, status = "primary", 
                             label = "Limit to ministers who were found, arrested, or returned home"),
              checkboxGroupInput("direction", label = ("Direction:"), 
@@ -213,13 +188,12 @@ ui <- fluidPage(
     column(10, verbatimTextOutput("textHeader"),
       tags$head(tags$style("#textHeader{color:#367CBB; font-size:12px; font-style:regular;
       overflow-y:scroll; max-height: 100px; background: ghostwhite;}"))),
-    column(2, h5("Direction of Movement: ")),
-    column(10, plotlyOutput("directionPlotly")),
-    column(2, h5("Number of Ministers by Denomination: ")),
-    column(10, plotlyOutput("denominationPieChart"))
-    # column(10, tableOutput("denominationTable"))#end column
-     ) #end fluidrow
-    ), #end first tabPanel
+    column(6, h5("Direction of Movement: ")),
+    column(6, h5("Number of Ministers by Denomination: ")),
+    column(6, plotlyOutput("directionPlotly")),
+    column(6, plotlyOutput("denominationPieChart")),
+    column(12, wellPanel(htmlOutput("home_about")))
+     )),
     
     tabPanel("Settlement Size",
              sidebarLayout(
@@ -227,23 +201,19 @@ ui <- fluidPage(
                  wellPanel(sliderInput("theYear","Date Range:", min = 1870, max = 1914, value = c(1870, 1914),
                              step = 1, width = 400, dragRange = TRUE, sep= ''))),
                column(9, wellPanel(
-                 plotOutput("barplot"), br(), htmlOutput("text_summary"))))
-    ), #end Settlement Size tabPanel
-    
+                 plotOutput("barplot"), br(), htmlOutput("text_summary")))),
+             wellPanel(htmlOutput("settlement_about"))
+             ),
     tabPanel("Four Major Denominations",
              fluidRow(
                wellPanel(dygraphOutput("dygraph"),
                          br(),
-                         htmlOutput("dygraph_description")))
-    ), #end Major Denominations tabPanel
-    
+                         htmlOutput("dygraph_description")))), 
     tabPanel("Raw Data",
              fluidRow(
                wellPanel(DT::dataTableOutput("x1"),
                          fluidRow(p(class = 'text-center'))))
-    ) #end Raw Data tabPanel
-  ) #end navbarPage
-) #end fluidpage
+             )))
 
 
 server <- function(input, output, session) {
@@ -358,6 +328,14 @@ server <- function(input, output, session) {
   
   output$value <- renderPrint({ input$direction })
   
+  output$home_about <- renderUI({
+    "The Runaway Reverends project is an interactive digital map of American Protestant pastors who eloped with women who were not their wives between the years 1870 and 1914.
+    Red dots represent places of origin. Green dots are destinations. Blue dots indicate ministers who returned home.
+    Clicking on each dot will provide additional information about the minister.
+    You may also filter by year, denomination, and direction of movement in the left-hand column. Statistical data about the cohort in the lower half of the site will refresh each time you apply a new filter.
+    The project was created by Suzanna Krivulskaya in collaboration with Matthew Sisk and Daniel Johnson of the Navari Family Center for Digital Scholarship at the University of Notre Dame."
+  })
+  
   #create an output table with directions
   # output$directionTable <- renderTable({
   #   direction.table.maker <- table(points.orig()@data[,c("bearClass")])
@@ -383,6 +361,15 @@ server <- function(input, output, session) {
     
   })
   
+  #reset Denominations input <- fix; not working
+  # observe({
+  #   input$reset_input
+  #   updateselectizeInput(session, "denomination", 
+  #                        choices = c(sort(unique(elop.raw$Denomination_for_Tableau))),
+  #                        multiple = TRUE,
+  #                        options = list(plugins= list('remove_button'), placeholder = 'All Denominations'), 
+  #                        server = TRUE)
+  # })
   
   #create a piechart with denominations
   output$denominationPieChart <- renderPlotly({
@@ -396,7 +383,7 @@ server <- function(input, output, session) {
                  labels = ~Var1,
                  values = ~Freq,
                  type = 'pie',
-                 height = 550,
+                 height = 350,
                  textposition = 'inside',
                  textinfo = 'value+label+percent',
                  insidetextfont = list(color = '#FFFFFF'),
@@ -409,13 +396,6 @@ server <- function(input, output, session) {
       d 
     
   })
-  
-  #create a table with denominations
-  # output$denominationTable <- renderTable(table(points.orig()@data[,c("Denomination_for_Tableau")]),striped = T, colnames = F, hover = TRUE, spascing = 'xs')
-  
-  #create a bar chart with denominations
-  # output$denominationPlot <- renderPlot(barplot(table(points.orig()@data[,c("Denomination_for_Tableau")])))
-  
 
   output$textHeader <- renderText(text.filter())  
   output$mymap <- renderLeaflet({
@@ -450,11 +430,8 @@ server <- function(input, output, session) {
     {rdt2 <- rdt[d$selection(),]
     dt <- DT::datatable(rdt, rownames = FALSE, 
                         options = list(
-                          #hide the "rownames" column
                           columnDefs = list(list(visible=FALSE,targets=c(0))),
-                          #define default number of rows displayed
                           pageLength = 20, 
-                          #select view options for number of rows displayed
                           lengthMenu = c (20, 50, 100, 200, 266)))
     if (NROW(rdt2) == 0) {
       dt
@@ -463,7 +440,7 @@ server <- function(input, output, session) {
                       color = DT::styleEqual(rdt2$rowname, rep("white", length(rdt2$rowname))),
                       backgroundColor = DT::styleEqual(rdt2$rowname, rep("black", length(rdt2$rowname))))  
     }
-    }) #end raw data table
+    })
   
   #output dygraph
   output$dygraph <- renderDygraph({
@@ -489,7 +466,13 @@ server <- function(input, output, session) {
     Hovering over any year with the mouse will summarize the number of eloping ministers by denomination for that year. 
     Use the slider at the bottom to zoom in on a specific date range.
     Please note that since exact elopements dates were not always available in the dataset, the month of January was used by default for every year represented in the graph."
-  }) #end dygraph
+  })
+  
+  output$settlement_about <- renderUI({
+    "This page tracks where the Runaway Reverends chose to elope over time.
+    We were interested in whether most preferred to disappear in larger cities and, if so, whether that pattern changed over time.
+    Select a year or a span of years to see how the desired new location patterns changed over time."
+  })
   
   #output settlment size data
   locationChange <- reactive({
@@ -516,54 +499,20 @@ server <- function(input, output, session) {
         , na.rm=TRUE) #end sum
       
       sameSize = sameSize + currentSum
-      # print(sameSize)
-      
+
       #ORIGIN SMALLER
-      #adds up the number of times source city is smaller than the destination, for the given year, i
-      currentSum <- sum(
-        #conditions of sum 
-        (#test the two city size designations
-          ((df[2]) < (df[3]))
-          & 
-            #test for the chosen year
-            apply(df, 1, function(v) {
-              #if the year is correct 
-              (v[1] == i)} )
-        ) #conditions of sum
-        , na.rm=TRUE) #end sum
+      currentSum <- sum((((df[2]) < (df[3])) & apply(df, 1, function(v) { (v[1] == i)} )), na.rm=TRUE)
       upSize =upSize + currentSum
       print(upSize)
       
       #ORIGIN LARGER
-      #adds up the number of times source city is larger than the destination, for the given year, i
-      currentSum <- sum(
-        # conditions of sum 
-        ( # Test the two city size designations
-          ((df[2]) > (df[3]))
-          & 
-            # Test for the chosen year
-            apply(df, 1, function(v) {
-              #if the year is correct 
-              (v[1] == i)})
-        ) #conditions of sum
-        , na.rm=TRUE) #end sum
-      
+      currentSum <- sum((((df[2]) > (df[3])) & apply(df, 1, function(v) { (v[1] == i)})), na.rm=TRUE)
       downSize = downSize + currentSum
       print(downSize)
       
       #SAME ORIGIN AND DESTINATION
-      currentSum <- sum(
-        #conditions of sum 
-        (#test the two city size designations
-          ((df[2]) == (df[3]))
-          & 
-            #test for the chosen year
-            apply(df, 1, function(v) {
-              #if the year is correct and if the origin and destination are not the same
-              (v[1] == i) & (v[4] == v[5])} )) # conditions of sum
-        , na.rm=TRUE) #end sum
-      
-      sameCity = sameCity + currentSum} #for statement, looping through the years selected
+      currentSum <- sum((((df[2]) == (df[3])) & apply(df, 1, function(v) {(v[1] == i) & (v[4] == v[5])} )), na.rm=TRUE)
+      sameCity = sameCity + currentSum}
     
     summedList <- c(upSize, sameSize, downSize, sameCity)
     return(summedList)}) #locationChange reactive function
@@ -587,7 +536,6 @@ server <- function(input, output, session) {
   }
 
 shinyApp(ui, server)
-#end Shiny app
 
 # library(rsconnect)
 # deployApp()
