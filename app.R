@@ -1,4 +1,10 @@
-rm(list=ls(all=TRUE)) #clear memory
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+# Find out more about building applications with Shiny here:
+#    http://shiny.rstudio.com/
+
+#clear memory
+rm(list=ls(all=TRUE))
 
 #load required packages
 library(rgdal)
@@ -18,7 +24,6 @@ library(shinyWidgets)
 
 # setwd("/Users/suzannakrivulskaya/Box Sync/Dissertation Stuff/Dissertation/Data and Research/ministerial-elopements")
 # setwd("E:\\GIT_Checkouts\\R_Scripts\\ministerial-elopements")
-# setwd("/home/matthew/GIT/R_Scripts/ministerial-elopements")
 
 latlong <- "+init=epsg:4326"
 
@@ -413,9 +418,9 @@ server <- function(input, output, session) {
       clearMarkers() %>% 
       clearMarkerClusters() %>%
       clearShapes()%>%
-      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "#FF2000",radius=4, opacity = .8)%>%
-      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "blue",radius=4, opacity = .6)%>% #,clusterOptions = markerClusterOptions())
-      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "lime",radius=4, opacity = .8) %>%
+      addCircleMarkers(data = points.orig(), popup = ~popupw, group = "Origin",color = "darkred",radius=4, opacity = .6)%>%
+      addCircleMarkers(data = points.found(), popup = ~popupw, group = "Found",color = "darkblue",radius=4, opacity = .6)%>% #,clusterOptions = markerClusterOptions())
+      addCircleMarkers(data = points.connections(), popup = ~popupw, group = "Connections",color = "lime",radius=4, opacity = .5) %>%
       addPolylines(data = lines.connections(), popup = ~popupw, group = "Connections", color = "grey", opacity = .3)  %>%
       addPolygons(data=arrowheads.connections(), group = "Connections",  fillOpacity = .3, opacity = .3, popup = ~popupw, color = "grey", fillColor = "grey", stroke = F )
       zoom <- input$mymap_zoom
@@ -537,5 +542,6 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 
+#update app on ShinyApps.io
 # library(rsconnect)
 # deployApp()
