@@ -406,12 +406,13 @@ server <- function(input, output, session) {
   output$mymap <- renderLeaflet({
     leaflet() %>%
       fitBounds(-129,24.2,-65.58,50.54)%>%
-      addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(minZoom = 1, maxZoom = 13, noWrap = F)) %>%
+      addProviderTiles(
+        providers$Stamen.TonerLite, options = providerTileOptions(minZoom = 1, maxZoom = 13, noWrap = F)) %>%
       addLayersControl(
         overlayGroups = c("Origin", "Found","Connections"),
-        options = layersControlOptions(collapsed = FALSE)
-      )       
-
+        options = layersControlOptions(collapsed = FALSE)) %>%
+      leaflet::addLegend(colors = c("darkred","darkblue","limegreen"), labels = c("Origin","Found","Returned"), position = "bottomleft", opacity = 1)
+    
   })
   observe({
     leafletProxy("mymap") %>%
